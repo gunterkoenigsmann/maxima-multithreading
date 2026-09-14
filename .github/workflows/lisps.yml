@@ -50,8 +50,12 @@ jobs:
             apt: sbcl
             threads: expected
           - lisp: ccl64
-            # Not packaged for Ubuntu: fetched below.
-            configure: --enable-ccl64 --with-ccl64=${{ github.workspace }}/ccl/lx86cl64
+            # Not packaged for Ubuntu: fetched below.  $PWD rather than
+            # github.workspace because the matrix is evaluated before a
+            # runner exists, so that context is empty here and configure
+            # was handed a bare "/ccl/lx86cl64".  The shell expands this
+            # when the step runs, which is late enough.
+            configure: --enable-ccl64 --with-ccl64=$PWD/ccl/lx86cl64
             apt: ''
             threads: expected
           - lisp: ecl
@@ -95,7 +99,13 @@ jobs:
           ./configure ${{ matrix.configure }}
 
       - name: Build
-        run: make
+        # Kept in a file as well: when a build fails there is no
+        # tests/*.log to upload and the step output alone is awkward to
+        # read back, which is exactly the position the first run left us
+        # in.  pipefail so tee does not swallow make's exit status.
+        run: |
+          set -o pipefail
+          make 2>&1 | tee build.log
 
       - name: Report what this lisp can do
         # Printed rather than asserted: which path a lisp takes is a
@@ -118,5 +128,7 @@ jobs:
         with:
           name: logs-${{ matrix.lisp }}
           path: |
+            build.log
+            config.log
             tests/*.log
           if-no-files-found: ignore
