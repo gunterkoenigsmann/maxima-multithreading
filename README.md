@@ -132,14 +132,34 @@ What is known so far, measured rather than assumed:
 |---|---|---|---|
 | SBCL 2.2.9 | yes | yes | 21,517 tests, 1 failure (`rtestprintf` 38, an SBCL `~e` float-printing artifact — CCL passes the same file 75/75) |
 | CCL 1.13 | yes | yes | 21,548 tests, no unexpected errors |
-| ECL 21.2.1 | yes (`mp:process-run-function`, `mp:process-join`) | not yet tried | — |
-| GCL 2.6.14 | no | not yet tried | — |
-| CLISP 2.49 | no | not yet tried | — |
+| ECL 21.2.1 | yes (`mp:process-run-function`, `mp:process-join`) | yes | `rtest_parallel` 52/52, three runs |
+| GCL 2.6.14 | no | **no** — see below | — |
+| CLISP 2.49 | no | yes in CI, no locally | suite fails in CI after 28 min; failures not yet attributed |
 
-ECL reports **NIL** from `si:get-number-of-processors`, so it takes the
-core count from `MAXIMA_NUM_CORES`, which `src/maxima.in` sets from
-`nproc`. A first CI run is what will say whether GCL and CLISP can build
-Maxima from their Ubuntu packages at all; nobody has checked.
+**ECL has no `si:get-number-of-processors` at all** — the symbol does not
+exist, which is worse than returning nothing, because naming a symbol a
+package does not export is a *reader* error and took the whole ECL build
+down until it was removed. ECL takes its core count from
+`MAXIMA_NUM_CORES` instead, which is what `src/maxima.in` sets from
+`nproc`, and reports 4 correctly through it.
+
+**GCL 2.6.14 from Ubuntu cannot build Maxima**: it compiles Lisp to C and
+hands the result to the system gcc, which returns non-zero on the
+generated `trigi.c`. That is a packaging and toolchain mismatch rather
+than anything in this tree, so the `gcl` job is expected to be red until
+someone builds GCL themselves (`README-lisps.md` notes GCL must be built
+`--enable-ansi`).
+
+Measured speedups, four one-second bodies on four cores, and the nested
+4x4 case that checks the session-wide thread cap holds:
+
+| lisp | serial | parallel | nested 4x4 (cap holding = ~4x parallel) |
+|---|---|---|---|
+| SBCL | 4054 ms | 1054 ms | 4061 ms |
+| CCL | 4201 ms | 1203 ms | 4204 ms |
+| ECL | 4700 ms | 1787 ms | 4724 ms |
+
+ECL's figures carry roughly 700 ms of start-up in every column.
 
 ## Known blind spots
 
