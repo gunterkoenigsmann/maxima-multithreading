@@ -143,12 +143,29 @@ down until it was removed. ECL takes its core count from
 `MAXIMA_NUM_CORES` instead, which is what `src/maxima.in` sets from
 `nproc`, and reports 4 correctly through it.
 
-**GCL 2.6.14 from Ubuntu cannot build Maxima**: it compiles Lisp to C and
-hands the result to the system gcc, which returns non-zero on the
-generated `trigi.c`. That is a packaging and toolchain mismatch rather
-than anything in this tree, so the `gcl` job is expected to be red until
-someone builds GCL themselves (`README-lisps.md` notes GCL must be built
-`--enable-ansi`).
+**GCL 2.6.14 from Ubuntu cannot build Maxima**, and the reason is
+narrower than a toolchain mismatch: **GCL emits C that does not compile**.
+Building `src/trigi.lisp` produces a `binary-gcl/trigi.h` containing
+
+```c
+#define VC153 object V680, ... ,V667; object V651 object V649,V636,V635;
+```
+
+-- `object V651 object V649`, with no separator between them. gcc rejects
+it with 148 errors, and does so under every combination of flags tried,
+including the plain ones without Ubuntu's hardening set. So this is a
+code-generation bug in that GCL, not something a compiler flag or this
+tree can work around.
+
+**ANSI mode is not the explanation**, though it is the first thing to
+suspect. `README-lisps.md` says GCL must be ANSI, and the Ubuntu package
+ships `/etc/default/gcl` with `DEFAULT_GCL_ANSI=` empty -- but Maxima's
+own `Makefile` does `export GCL_ANSI=t`, so the build runs GCL in ANSI
+mode regardless. Verified directly: plain `gcl` answers `#-ansi-cl`,
+`GCL_ANSI=t gcl` answers `#+ansi-cl`.
+
+So the `gcl` job is expected red until someone supplies a GCL that
+generates valid C.
 
 Measured speedups, four one-second bodies on four cores, and the nested
 4x4 case that checks the session-wide thread cap holds:
