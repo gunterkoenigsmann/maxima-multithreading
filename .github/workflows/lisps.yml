@@ -1,0 +1,122 @@
+# Build Maxima and run its test suite on one lisp per job.
+#
+# This lives on `main` rather than on the branch it tests, and that is
+# deliberate.  `multithreading-groundwork` is kept a fast-forward of what
+# goes to SourceForge, so a commit that exists only on GitHub would break
+# the property the README asks everyone to preserve.  `main` shares no
+# history with it and holds only the runbook, so infrastructure belongs
+# here.  The cost is that pushes cannot trigger this -- GitHub reads
+# workflows from the branch being pushed -- hence the schedule and the
+# manual button.
+#
+# The jobs are doing two different things.  SBCL, CCL and ECL have
+# threads, so they check that parallel evaluation is correct.  GCL and
+# CLISP have none, so they check the other half: that the same tests
+# pass when everything runs one after another.  That path is not a
+# corner case -- it also runs whenever the thread budget is spent -- but
+# nothing else exercises it on a lisp that genuinely cannot thread.
+
+name: lisps
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Branch, tag or commit to test
+        default: multithreading-groundwork
+        required: false
+  schedule:
+    # 03:17 UTC, off the hour so it does not queue with everyone else's
+    - cron: '17 3 * * *'
+
+permissions:
+  contents: read
+
+jobs:
+  suite:
+    name: ${{ matrix.lisp }}
+    runs-on: ubuntu-latest
+    # A build is ~15 minutes and the suite alone took 550 seconds under
+    # CCL on four cores; a GitHub runner has two.
+    timeout-minutes: 150
+    strategy:
+      # One lisp failing is a result about that lisp, not a reason to
+      # stop asking about the others.
+      fail-fast: false
+      matrix:
+        include:
+          - lisp: sbcl
+            configure: --enable-sbcl
+            apt: sbcl
+            threads: expected
+          - lisp: ccl64
+            # Not packaged for Ubuntu: fetched below.
+            configure: --enable-ccl64 --with-ccl64=${{ github.workspace }}/ccl/lx86cl64
+            apt: ''
+            threads: expected
+          - lisp: ecl
+            configure: --enable-ecl
+            apt: ecl
+            threads: expected
+          - lisp: gcl
+            configure: --enable-gcl
+            apt: gcl
+            threads: none
+          - lisp: clisp
+            configure: --enable-clisp
+            apt: clisp
+            threads: none
+
+    steps:
+      - name: Check out the branch under test
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || 'multithreading-groundwork' }}
+
+      - name: Install build requirements
+        run: |
+          sudo apt-get update -qq
+          # makeinfo is not optional: enable_build_docs defaults true and
+          # configure aborts without it.
+          sudo apt-get install -y --no-install-recommends \
+            texinfo autoconf automake make gcc ${{ matrix.apt }}
+
+      - name: Fetch Clozure CL
+        if: matrix.lisp == 'ccl64'
+        run: |
+          curl -fsSL -o ccl.tar.gz \
+            https://github.com/Clozure/ccl/releases/download/v1.13/ccl-1.13-linuxx86.tar.gz
+          tar xzf ccl.tar.gz
+          ./ccl/lx86cl64 --version
+
+      - name: Bootstrap and configure
+        run: |
+          sh bootstrap
+          ./configure ${{ matrix.configure }}
+
+      - name: Build
+        run: make
+
+      - name: Report what this lisp can do
+        # Printed rather than asserted: which path a lisp takes is a
+        # fact about the lisp, and the log should say which of the two
+        # sets of tests below actually got exercised.
+        run: |
+          ./maxima-local --lisp=${{ matrix.lisp }} --no-init -q --batch-string='
+            print("lisp:    ", build_info()@lisp_name)$
+            print("threads: ", parallel_threads_available())$
+            print("cores:   ", parallel_cores())$' || true
+
+      - name: Test suite
+        # make check greps its log for "No unexpected errors"; that
+        # string, not a failure count, is the pass/fail contract.
+        run: make check
+
+      - name: Keep the logs when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-${{ matrix.lisp }}
+          path: |
+            tests/*.log
+          if-no-files-found: ignore

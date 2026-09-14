@@ -107,6 +107,40 @@ branches.
 - **GCL has no threads and CLISP none usable.** Both are supported lisps,
   so anything added here needs a single-threaded fallback.
 
+## Continuous integration
+
+`.github/workflows/lisps.yml` builds Maxima and runs `make check` on one
+lisp per job: **sbcl**, **ccl64**, **ecl**, **gcl** and **clisp**.
+
+It lives here on `main`, not on `multithreading-groundwork`, because that
+branch is kept a fast-forward of what goes to SourceForge and a commit
+existing only on GitHub would break exactly the property this README asks
+everyone to preserve. The price is that a push cannot start it — GitHub
+reads workflows from the branch being pushed — so it runs nightly and
+from the **Run workflow** button, which takes the branch to test as an
+argument.
+
+The jobs are asking two different questions. SBCL, CCL and ECL have
+threads, so they check that parallel evaluation is correct. GCL and CLISP
+have none, so they check that the same tests pass with everything running
+one after another — which is not a corner case, since that path also runs
+whenever the thread budget is spent.
+
+What is known so far, measured rather than assumed:
+
+| lisp | threads | Maxima builds | suite |
+|---|---|---|---|
+| SBCL 2.2.9 | yes | yes | 21,517 tests, 1 failure (`rtestprintf` 38, an SBCL `~e` float-printing artifact — CCL passes the same file 75/75) |
+| CCL 1.13 | yes | yes | 21,548 tests, no unexpected errors |
+| ECL 21.2.1 | yes (`mp:process-run-function`, `mp:process-join`) | not yet tried | — |
+| GCL 2.6.14 | no | not yet tried | — |
+| CLISP 2.49 | no | not yet tried | — |
+
+ECL reports **NIL** from `si:get-number-of-processors`, so it takes the
+core count from `MAXIMA_NUM_CORES`, which `src/maxima.in` sets from
+`nproc`. A first CI run is what will say whether GCL and CLISP can build
+Maxima from their Ubuntu packages at all; nobody has checked.
+
 ## Known blind spots
 
 `who-sets` cannot see top-level assignment, in-place mutation
