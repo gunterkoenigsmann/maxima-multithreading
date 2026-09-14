@@ -3,6 +3,33 @@
 Working space for making Maxima safe to run in more than one thread:
 issues here, and the branch mirrored here so everyone can reach it.
 
+## Start here
+
+**This branch (`main`) holds only this file.** The code is on
+`multithreading-groundwork`, which is the whole Maxima tree and shares no
+history with `main`:
+
+```sh
+git clone -b multithreading-groundwork \
+    git@github.com:gunterkoenigsmann/maxima-multithreading.git maxima
+cd maxima
+sh bootstrap                       # ./configure is not checked in
+./configure --enable-sbcl          # add --enable-ccl64 if you have CCL
+make                               # ~15 min; texinfo/makeinfo is required
+make check                         # suite + dependency check
+```
+
+`makeinfo` is a hard requirement — without it `./configure` aborts.
+Building `--disable-build-docs` works but loses `?` help and prints a
+warning at every startup, which pollutes every batch capture.
+
+That tree contains **`AGENTS.md`**, Maxima's own instructions for AI
+agents: build system, the edit-test loop, test-suite contract, internal
+representation, subsystem traps. Read it before changing anything — most
+of the ways to waste a day here are in it.
+
+Then read issue #1 and pick an unassigned issue.
+
 ## Two repositories, and which one is which
 
 | | |
