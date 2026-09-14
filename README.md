@@ -1,35 +1,60 @@
 # Maxima multi-threading
 
-Coordination space for the work of making Maxima safe to run in more than
-one thread. **No code lives here.** This repository is issues only.
+Working space for making Maxima safe to run in more than one thread:
+issues here, and the branch mirrored here so everyone can reach it.
 
-## Where the code actually is
+## Two repositories, and which one is which
 
-Upstream Maxima is **SourceForge**: `git.code.sf.net/p/maxima/code`.
-The working branch for this effort is **`multithreading-groundwork`**.
+| | |
+|---|---|
+| **This repo** | Where the work happens. Issues, branches, review. Branch: `multithreading-groundwork` |
+| **SourceForge** `git.code.sf.net/p/maxima/code` | Where Maxima actually lives. Nothing is delivered until it lands here |
 
-> `github.com/calyau/maxima` is a **pure mirror**. Commits, branches and
-> pull requests pushed there are overwritten on the next sync. Only
-> SourceForge lands changes; a green GitHub branch is not work delivered.
-> Do not send patches to the mirror, and do not open code PRs here.
+Not everyone working on this has a SourceForge account, so **push to this
+repo**; whoever has SourceForge access syncs across when a piece is ready
+and green:
 
-The workflow is the project's own (`README.developers-howto` §1): scratch
-branch → `master` → push to SourceForge.
+```sh
+git remote add gh git@github.com:gunterkoenigsmann/maxima-multithreading.git
+git remote add sf ssh://USER@git.code.sf.net/p/maxima/code
+git fetch gh
+git push sf multithreading-groundwork      # or merged onto master
+```
 
-## What already exists on that branch
+The two are the same history, so this stays a fast-forward as long as
+nobody rewrites what is already pushed. Please don't force-push shared
+branches.
+
+> **Never push to `github.com/calyau/maxima`.** That is a *different*
+> repo: a pure mirror of SourceForge whose commits, branches and PRs are
+> overwritten on the next sync. It is not this one.
+
+## Working agreements
+
+- **One issue per piece of work.** Taking one? **Assign it to yourself**
+  — that is how the other side knows not to start it. Issue #1 is the
+  channel for questions, hand-offs and disagreements.
+- **Say whether a claim was measured or read off the source.** Several
+  things here behave differently from how they read, in both directions.
+- **Check on both SBCL and CCL.** They disagree often enough that a
+  result from one is only a hypothesis about the other. `make check`
+  runs both.
+
+## What already exists on the branch
 
 - `lisp-utils/thread-safety-survey.lisp` — which global state would leak
   between threads. Static (`who-sets` vs `who-binds` over all 1022
-  specials in package `MAXIMA`) plus a dynamic mode that snapshots and
-  reports what a real `run_testsuite()` actually disturbs.
+  specials in package `MAXIMA`: 197 assigned-never-bound, 176 both, 649
+  neither) plus a dynamic mode that snapshots and reports what a real
+  `run_testsuite()` actually disturbs (49 of 957).
 - `WITH-THREAD-LOCAL-ENVIRONMENT` (`src/suprv1.lisp`) — binds the 31
   specials a thread must own. Nothing calls it yet, so single-threaded
   Maxima is unchanged by construction.
 - `lisp-utils/thread-environment-check.lisp` — re-runnable verification
   that the environment isolates what it claims to, on any lisp.
 
-`make check` is green on both SBCL and CCL (`sbcl-test`, `ccl64-test`,
-`sbcl-depcheck`).
+`make check` is green on both lisps (`sbcl-test`, `ccl64-test`,
+`sbcl-depcheck`): 21,496 tests under CCL, 21,465 under SBCL.
 
 ## Things that are true and cost time to rediscover
 
@@ -50,13 +75,15 @@ branch → `master` → push to SourceForge.
   before a character reaches any stream — and a *recursive* lock does not
   help, because a thread holding one that starts a parallel loop is not
   the thread its workers run in.
+- **`read()` reads `*STANDARD-INPUT*` on SBCL and `*QUERY-IO*` on CCL**
+  (the `#+(or sbcl cmu)` in `macsys.lisp`), so a worker must bind both.
 - **GCL has no threads and CLISP none usable.** Both are supported lisps,
   so anything added here needs a single-threaded fallback.
 
-## Conventions
+## Known blind spots
 
-- One issue per open piece of work. Issue #1 is the channel between the
-  agents working on this.
-- Claims should say whether they were **measured** or **read off the
-  source**. Most of the surprises above were measured, and several
-  contradicted what the code looked like it did.
+`who-sets` cannot see top-level assignment, in-place mutation
+(`ADD2LNC` `nconc`s onto `$PROPS`; the fact database lives on symbol
+plists, not in variables), or assignment from Maxima level via `MSET` —
+which makes `display2d:false` invisible. **For a user-settable `defmvar`,
+a static count of zero is not evidence of anything.**
