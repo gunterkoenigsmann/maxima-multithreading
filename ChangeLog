@@ -1,6 +1,9 @@
 Maxima 5.50-post change log
 ===========================
 
+* Support garbage_collect on CCL and check live parallel object graphs and
+  exact arithmetic across observed garbage collections.
+
 * Preserve bigfloat header caches and rounding scratch in every parallel
   runner, including the caller and nested computations.
 

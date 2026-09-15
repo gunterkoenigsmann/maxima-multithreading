@@ -695,7 +695,9 @@
   (progn (si::gbc t) t)
   #+sbcl
   (progn (sb-ext::gc :full t) t)
+  #+ccl
+  (progn (ccl:gc) t)
   #+cmucl
   (progn (ext:gc :full t) t)
-  #-(or allegro clisp ecl gcl sbcl cmucl)
+  #-(or allegro clisp ecl gcl sbcl ccl cmucl)
   nil)

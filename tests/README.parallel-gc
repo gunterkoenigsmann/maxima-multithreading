@@ -1,0 +1,65 @@
+Live parallel roots across garbage collection
+==============================================
+
+Run ./maxima-local --no-init --batch-string='run_testsuite(tests=["rtest_parallel"]);'
+The appended 21 cases bring that registered file to 94 problems.
+
+The tests use Maxima's public GARBAGE_COLLECT, require its true return value
+and independently observe a collection. SBCL's GC epoch changes after a
+collection; CCL's GCCOUNTS and CLISP's fourth ROOM value count collections.
+ECL's GC-STATS supplies a count and its previous status. The observer
+restores that NIL/T/:FULL status on normal return, errors and THROW, without
+resetting counters. Only the fixture's observation/collection pair is locked;
+mathematics, spawning, joining and nested computations run outside that lock.
+
+These observations cover SBCL, CCL, CLISP and ECL. Other runtimes retain the
+ordinary object/arithmetic controls but skip forced-collection assertions.
+Threadless configurations run caller/fallback/nested controls. No heap sizes,
+collection thresholds, pinning or allocation hooks are changed.
+
+Each corpus contains 16 reproducible roots: cycles, aliased lists/vectors,
+EQ hash tables, lexical closures, byte arrays, large integers, Maxima
+expressions and bigfloat values. Three collections must preserve the explicit
+alias relationships, field contents, exact integer identities and independently
+bounded rational approximations. A separate bit-vector snapshot of the signed mantissa, with copied header
+flags, precision and exponent, also detects individual bit or precision
+changes that could remain inside the numeric error bound. The no-GC controls validate
+the same oracle.
+Each worker creates its own graph; the controller receives only a boolean,
+so its stack cannot accidentally keep the worker's roots alive.
+
+Two native workers either wait with their roots live across three rendezvous
+or keep allocating and checking mathematical results while the controller
+collects. Progress from both workers is required before and after collection.
+Native handles must be distinct, and both jobs must finish without errors.
+Setup failures cancel and join already started workers. Rendezvous have
+15-second deadlines; active work is also bounded if the controller stalls.
+
+Managed references are the Lisp runtime's responsibility. SBCL/CCL can move
+objects; the tested ECL configuration uses Boehm. These tests neither demand
+that a particular object moves nor read raw object addresses. They provide
+regression evidence for these runtime paths, not certification of every GC,
+build, foreign raw pointer or asynchronous interruption mechanism.
+
+Primary references:
+https://github.com/sbcl/sbcl/blob/sbcl-2.2.9/src/code/gc.lisp
+https://ccl.clozure.com/docs/static/ccl.html
+https://clisp.sourceforge.io/impnotes/environment-enq.html
+https://ecl.common-lisp.dev/static/files/manual/ecl-21.2.1/Memory-Management.html
+ECL21.2.1 src/c/alloc_2.d: SI_GC_STATS returns the previous statistics status.
+
+Known CCL printer limitation (#51)
+---------------------------------
+The first exact snapshot used WRITE-TO-STRING with *PRINT-READABLY* true.
+On unmodified CCL 1.13 LinuxX8664, concurrent CCL:GC can make ordinary
+symbols, conses or integers signal PRINT-NOT-READABLE. A standalone
+reproducer requiring no Maxima failed in five fresh processes; five controls
+without explicit GC passed. The same rejected object prints after GC stops.
+See https://github.com/gunterkoenigsmann/maxima-multithreading/issues/51
+for the complete reproducer and observations. Its precise cause is unresolved.
+
+The current snapshot uses LOGBITP and a separately allocated bit vector;
+it does not invoke the Lisp printer while workers are active. This preserves
+the exact bit checks but does not fix or certify concurrent Lisp printing.
+No runtime monkeypatch, GC inhibition or weakened mathematical expectation
+is part of these tests.
