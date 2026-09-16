@@ -1,6 +1,9 @@
 Maxima 5.50-post change log
 ===========================
 
+* Reserve generated solution parameter numbers atomically, preserving
+  independent parameter identities and explicit serial counter resets.
+
 * Synchronize the Lisp lambda function cache, preserving its size bound
   across concurrent or nested compilation, the original coercion results,
   and existing entries on failure.
