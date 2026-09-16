@@ -116,17 +116,15 @@
 
 (defvar *mosesflag nil)
 
+(defvar *make-param-lock* (%make-lock "Maxima generated parameters"))
+
 (defun make-param ()
-  ;; (incf $%rnum) is a read, an add and a write, so two threads can take
-  ;; the same number and INTERN then hands them one symbol for what are
-  ;; meant to be two distinct parameters.  Fixing that by rejecting a name
-  ;; INTERN says already exists does NOT work: %r1 stays interned for the
-  ;; life of the image, and after kill(all) resets the counter, reusing it
-  ;; is the intended behaviour -- rtest8, rtest15, rtest16, rtestint,
-  ;; rtest_algsys and rtest_eigen all assert particular %r numbers.  The
-  ;; race needs an atomic increment or a lock, so it waits for the lock
-  ;; abstraction rather than a fix that renumbers everyone's parameters.
-  (let ((param (intern (format nil "~A~D" '$%r (incf $%rnum)))))
+  ;; Reserve a distinct number before formatting or interning it. Keep
+  ;; explicit serial resets: rejecting already interned names would change
+  ;; the expected parameter names after kill(all) or a counter reset.
+  (let ((param (intern (format nil "~A~D" '$%r
+                              (%with-lock (*make-param-lock*)
+                                (incf $%rnum))))))
     (tuchus $%rnum_list param)
     param))
 

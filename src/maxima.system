@@ -1087,7 +1087,7 @@
                   "maxima-language-compiler-macros"
                   "prerequisites" "utility-macros"
                   "destructuring-let" "utilities"
-                  "simp-utilities" "maxima-language-compiler")
+                  "simp-utilities" "maxima-language-compiler" "i-o")
      ;; Module is a clean DAG at every level: function calls, macros,
      ;; special-variable references.
      #+mk-deps-complete :dependencies-complete #+mk-deps-complete t

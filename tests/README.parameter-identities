@@ -1,0 +1,44 @@
+Generated solution parameter identities
+======================================
+
+Run the registered regressions from the build root:
+
+  timeout 180 ./maxima-local --no-init --lisp=sbcl \
+    --batch-string='run_testsuite(tests=[rtest_parallel]);'
+
+Require the complete "No unexpected errors" summary and reject any
+"Maxima encountered a Lisp error", even if the exit status is zero.
+Run the full core and share suites on each configured Lisp as well.
+
+MAKE-PARAM shares %RNUM across independent computations. An unprotected
+INCF can lose updates, making INTERN return the same symbol for two
+parameters that must be independent. A lock now protects just the increment
+and captures its result. Formatting, interning and appending to the current
+computation's %RNUM_LIST remain outside the lock. Explicit serial resets
+still reuse the original names; no already-interned-name rejection is added.
+Concurrent explicit resets or private bindings of this internal counter
+are not a way to request globally distinct names.
+
+The 25 appended test pairs load the helper, perform 23 checks and clean up.
+They cover zero calls, negative and large counters, crossing the fixnum
+boundary, list append semantics, explicit resets and error recovery. A seeded
+generator also checks 64 varied integer ranges without consuming caller RNG.
+Eight native workers make 80,000 calls using fresh per-call parameter lists;
+identities, numeric range, exact final count and distinct physical workers
+are checked. Additional runs cross the fixnum boundary and use bignums.
+All threads are joined once, and startup waits have a five-second deadline.
+
+The mathematical checks exercise a single SOLVE computation at serial,
+caller, forced worker and fallback execution sites. Public and nested
+parallel checks independently construct solution families x = n - r, y = r,
+verify x + y = n exactly, and require distinct free parameters. Concurrent
+SOLVE itself has a separate pre-existing concurrency failure (#58); this change
+does not certify the entire solver for concurrent use. No existing
+mathematical expected answer or known-failure entry is changed.
+
+Native checks run on threaded SBCL, CCL and ECL. ECL 21.2.1's public
+scheduler deliberately remains serial. On a Lisp without supported native
+threads, the native entry checks a bounded serial sequence and forced
+worker checks use the serial fallback. Run fixtures in an otherwise idle
+test process: the shared counter and scheduler statistics are restored,
+and each calculation gets a private parameter list.
