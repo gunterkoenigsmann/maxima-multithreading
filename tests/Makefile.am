@@ -148,4 +148,4 @@ EXTRA_DIST = $(genericdirDATA) test.sh.in depcheck.sh.in \
              README.parallel-callstack README.mbind-error README.unbinding \
              README.parallel-bindings README.parallel-bigints \
              README.parallel-header README.parallel-loading \
-             README.parallel-startup
+             README.parallel-startup README.parallel-lambda-cache

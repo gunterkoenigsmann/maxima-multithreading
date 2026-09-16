@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Synchronize the Lisp lambda function cache, preserving its size bound
+  across concurrent or nested compilation, the original coercion results,
+  and existing entries on failure.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   21.2.1, whose interrupt deferral can lose worker ownership.
