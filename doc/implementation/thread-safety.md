@@ -214,14 +214,12 @@ The ones written **at run time** are:
 | `*DIRECTORY-CACHE*` | `src/mload.lisp` | directory lookups |
 | `*TEMP-FILES-LIST*` | `src/plot.lisp` | plotting |
 
-**`*LAMBDA-EXPR-FUNS*` is the interesting one** and is worth fixing
-regardless of threads. It memoises compiled functions for Lisp lambda
-expressions applied by `MAPPLY1`. It is a plain, unsynchronised hash
-table, and its eviction branch runs `WITH-HASH-TABLE-ITERATOR`, `RANDOM`
-on one shared random state, and `REMHASH` -- a combination the standard
-does not define under concurrent modification.
+**`*LAMBDA-EXPR-FUNS*`** memoises compiled functions for Lisp lambda
+expressions applied by `MAPPLY1`. Before the cache lock was added, its
+unsynchronised eviction branch ran `WITH-HASH-TABLE-ITERATOR`, `RANDOM`
+on one shared random state, and `REMHASH` concurrently.
 
-**Measured**, four threads each applying 400 distinct expressions:
+**Before the fix**, four threads each applying 400 distinct expressions:
 
 | run | worker threads that died | final size (limit 128) |
 |---|---|---|
@@ -237,9 +235,26 @@ exceeded the limit its own docstring says it must not grow past.
 **Reachability**: `MAPPLY1` uses this branch only for a **Lisp** lambda;
 Maxima's own `lambda([x], ...)` is `((lambda) ...)` and goes to
 `MLAMBDA` instead. So this is a real defect on a path ordinary Maxima
-code does not currently reach -- latent rather than live. The fix is one
-keyword (`:synchronized t`, which SBCL and CCL both support) or a lock
-around the three operations.
+code does not currently reach directly.
+
+`LAMBDA-EXPR-FUN` now locks every cache lookup and the whole
+capacity/eviction/publication transaction, including the private random
+state. Individual synchronized hash-table operations would not make that
+transaction atomic. `COERCE` stays outside the lock: compilation can run
+user macros that reenter the cache. After compilation, a second lookup
+decides whether a new key requires eviction. Each caller receives its own
+coercion result and the last publication is cached, preserving the original
+behavior even when compilation recursively coerces the same key. Coercion that
+signals an error does not evict an existing entry. Cache size zero still
+bypasses the cache.
+
+The lock uses native SBCL, CCL or ECL primitives and is omitted on the
+portable serial path. It is defined in `mlisp.lisp`, which is compiled
+before the lock helpers in `parallel.lisp`. The size setting must stay
+fixed while callers share a cache, as in normal use. Compiler and function
+execution are not serialized by this lock; their own shared state still
+requires separate analysis. Tests and deterministic compiler rendezvous
+are documented in `tests/README.parallel-lambda-cache`.
 
 ## 10. Streams
 

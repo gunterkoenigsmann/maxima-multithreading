@@ -78,25 +78,48 @@ or if apply is being used are printed.")
 (defvar *lambda-expr-funs-random* (make-random-state nil)
   "Random state for picking an entry from *LAMBDA-EXPR-FUNS* to drop.")
 
+;; MLISP is compiled before PARALLEL, so its later lock macros are unavailable.
+(defvar *lambda-expr-funs-lock*
+  #+sb-thread (sb-thread:make-mutex :name "Maxima Lisp lambda cache")
+  #+(and ccl openmcl-native-threads (not sb-thread)) (ccl:make-lock "Maxima Lisp lambda cache")
+  #+(and ecl threads (not sb-thread) (not ccl)) (mp:make-lock :name "Maxima Lisp lambda cache")
+  #-(or sb-thread (and ccl openmcl-native-threads) (and ecl threads)) nil
+  "Protects the lambda cache and its eviction random state.")
+
+(defmacro with-lambda-expr-funs-lock (&body body)
+  #+sb-thread `(sb-thread:with-mutex (*lambda-expr-funs-lock*) ,@body)
+  #+(and ccl openmcl-native-threads (not sb-thread))
+  `(ccl:with-lock-grabbed (*lambda-expr-funs-lock*) ,@body)
+  #+(and ecl threads (not sb-thread) (not ccl))
+  `(mp:with-lock (*lambda-expr-funs-lock*) ,@body)
+  #-(or sb-thread (and ccl openmcl-native-threads) (and ecl threads)) `(progn ,@body))
+
 (defun lambda-expr-fun (fn)
   "Get the compiled function for the Lisp lambda expression FN, using
   *LAMBDA-EXPR-FUNS* as a cache to reduce compiler invocations."
   (cond
     ((= 0 *lambda-expr-funs-max*)
       (coerce fn 'function))
-    ((gethash fn *lambda-expr-funs*))
     (t
-      (when (>= (hash-table-count *lambda-expr-funs*)
-                *lambda-expr-funs-max*)
-        ;; Hash table at the limit - drop a random entry.
-        (with-hash-table-iterator (next *lambda-expr-funs*)
-          (let ((n (random (hash-table-count *lambda-expr-funs*)
-                           *lambda-expr-funs-random*)))
-            (dotimes (i n) (next)))
-          (multiple-value-bind (foundp key) (next)
-            (when foundp
-              (remhash key *lambda-expr-funs*)))))
-      (setf (gethash fn *lambda-expr-funs*) (coerce fn 'function)))))
+      (or (with-lambda-expr-funs-lock
+            (gethash fn *lambda-expr-funs*))
+          ;; Coercion can compile user code. Keep it outside the cache lock.
+          (let ((fun (coerce fn 'function)))
+            (with-lambda-expr-funs-lock
+              ;; Replacement does not add a key. Preserve each caller's own
+              ;; coercion result, including recursive compilation of this key.
+              (unless (gethash fn *lambda-expr-funs*)
+                (when (>= (hash-table-count *lambda-expr-funs*)
+                          *lambda-expr-funs-max*)
+                  ;; Hash table at the limit - drop a random entry.
+                  (with-hash-table-iterator (next *lambda-expr-funs*)
+                    (let ((n (random (hash-table-count *lambda-expr-funs*)
+                                     *lambda-expr-funs-random*)))
+                      (dotimes (i n) (next)))
+                    (multiple-value-bind (foundp key) (next)
+                      (when foundp
+                        (remhash key *lambda-expr-funs*))))))
+              (setf (gethash fn *lambda-expr-funs*) fun)))))))
 
 
 (defun mapply1 (fn args fnname form)

@@ -1,0 +1,58 @@
+Lisp lambda function cache
+=========================
+
+Run from the build root, using each configured Lisp:
+
+  timeout 180 ./maxima-local --no-init --lisp=sbcl \
+    --batch-string='run_testsuite(tests=[rtest_parallel]);'
+
+Require "No unexpected errors" and reject any "Maxima encountered a Lisp
+error" message, even with exit status zero. The full core/share suite
+includes these cases. Existing mathematical expected answers are unchanged.
+
+LAMBDA-EXPR-FUN caches compiled Lisp lambda expressions for MAPPLY1. This
+is separate from Maxima's own lambda evaluator. A cache lock protects both
+lookups and the entire capacity/eviction/publication transaction, including
+its private random state. Compilation stays outside the lock because a
+compiler macro may call LAMBDA-EXPR-FUN recursively. A second lookup after
+compilation decides whether insertion needs eviction. Every caller receives
+its own coercion result, and the last publication remains in the cache;
+reusing an inner compilation could change an outer call's result.
+This permits duplicate compilation on concurrent misses; it does not claim
+that arbitrary compiler callbacks or executed functions are thread safe.
+
+The 29 appended test pairs load the helper, run 27 checks and clean up.
+They check cache limits zero, one, four and 128, warm hits, distinct EQ keys,
+input preservation, failed coercion, multiple values and optional/rest
+arguments. Eviction RNG checks use already compiled functions: CLISP's
+compiler itself uses the caller RNG, which is independent of cache eviction.
+
+A deterministic generator supplies 64 exact signed integer cases, with
+coefficients of 1 through 257 bits. MAPPLY1 invokes Maxima multiplication
+and addition; expected answers use independent integer shift/subtraction.
+Serial, caller, native worker, forced fallback and public scheduler paths
+must execute their bodies and preserve the input expressions. No floating
+point tolerance or simplification of old expected answers is involved.
+
+A real Lisp macro supplies a compiler callback, without replacing COERCE
+or LAMBDA-EXPR-FUN. Nested compilation exposes the old size overflow even
+without threads when COERCE expands macros eagerly. COERCE only promises
+a closure, so the fixture probes this behavior before checking compiler
+callbacks. Interpreted coercion retains the cache/value checks; SBCL
+also explicitly tests its interpreter mode. See the CLHS COERCE entry:
+https://www.lispworks.com/documentation/HyperSpec/Body/f_coerce.htm .
+GCL may apply recognized interpreted functions directly in MAPPLY1; its
+arithmetic check allows that documented cache bypass. GCL is unverified
+here. Two native compilers rendezvous on misses and publish in
+a controlled order: cold/full cache bounds, both callers' own results and the last cached result
+are checked. A serial same-key recursive compiler probe additionally preserves the outer
+result, unrelated entries and eviction RNG. Four actual workers then stress
+repeated eviction and shared hits. Worker identities, completion and exact results are asserted. Waits
+have five-second deadlines; cleanup joins each worker once, including CCL.
+
+Native probes run on threaded SBCL, CCL and ECL even when the public ECL
+21.2.1 scheduler falls back to serial execution. Other configurations still
+run the portable reentry, error and arithmetic checks. Run in an otherwise
+idle test process: fixtures use isolated caches/RNGs and restore scheduler
+counters. These tests do not certify other shared tables or asynchronous
+interruption of a Lisp runtime's hash-table implementation.
