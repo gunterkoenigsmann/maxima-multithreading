@@ -815,7 +815,7 @@
      :depends-on (globals defmfun compatibility-macros compatibility-macros1
                   declarations fundamental-macros
                   maxima-language-compiler-macros prerequisites
-                  utility-macros destructuring-let utilities)
+                  utility-macros destructuring-let utilities i-o)
      ;; Module is a clean DAG at every level: function calls, macros,
      ;; special-variable references.
      :components ((:file "mat")

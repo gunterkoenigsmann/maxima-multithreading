@@ -5,6 +5,12 @@ Maxima 5.50-post change log
   the lisp reader and printer are per-thread, so a worker used the wrong
   package, ibase, obase and default float format, and INTERN built
   symbols that printed correctly without matching anything.
+* Reserve generated solution parameter numbers atomically, preserving
+  independent parameter identities and explicit serial counter resets.
+
+* Synchronize the Lisp lambda function cache, preserving its size bound
+  across concurrent or nested compilation, the original coercion results,
+  and existing entries on failure.
 
 * Build with GCL again on releases before Version_2_6_15pre19 (Debian
   gcl 2.6.14-20), whose compiler emits uncompilable C for the
