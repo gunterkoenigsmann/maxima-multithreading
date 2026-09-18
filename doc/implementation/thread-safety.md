@@ -293,6 +293,47 @@ and friends) and in the sparse determinant (`src/sprdet.lisp`,
 serial `determinant` under `sparse:true` still assigns the global `*ROW*`
 and `*COL*`, because `SPRDET` reaches `TMLATTICE` in `src/linnew.lisp`.
 
+## 12. State in closures over a top-level LET
+
+```lisp
+(let ((base nil) (pow nil) (exptflag nil))
+  (defun superexpt ...)
+  (defun elemxpt ...))
+```
+
+This looks private, and in one thread it behaves like private state. But
+the `LET` runs once, when the file is loaded, so every thread's calls
+share its **one** set of cells. Unlike a special, no binding can give a
+thread its own copy. Neither a search for specials nor the survey's
+observation of value cells can see these cells.
+
+`src/sin.lisp` had three such blocks: `SUPEREXPT`'s base, power and
+failure flag, which `ELEMXPT` reads and sets; `SUBST41`'s root form and
+variables, which `SUBST4` reads; and `POWERL`, set by `INTFORM` and read by
+`INTEGRATOR`.
+
+**Measured** on SBCL, 48 items with three workers: parallel
+`integrate(%e^(i*%e^(%i*x)), x)` differed from serial in 4 runs of 4. With
+a factor `%e^(%i*x)`, 3 runs of 4 failed outright, because a worker took
+a method the serial computation never reaches and hit the guard against
+loading a package in a parallel body. Replaying real `SUBST41` arguments
+from four threads gave 349 and 420 wrong results in 1600 calls, and 0 in
+400 from one thread. No failure was reproduced for `POWERL` (0 of 6
+mixed runs).
+
+Each name now stands, through `SYMBOL-MACROLET`, for a special that
+`WITH-THREAD-LOCAL-ENVIRONMENT` binds to `NIL` in every thread (issue
+#63). The function bodies are unchanged. Each cell is written before it
+is read, and one thread still has one set of cells, so a single thread
+computes exactly what it did before, recursion included. Binding per call
+instead would have changed what a nested call leaves behind for its
+caller.
+
+The same shape remains in `src/irinte.lisp` (`CHECKSIGNTM`'s
+`ZEROSIGNTEST` and `PRODUCTCASE`, also used by `src/hyp.lisp`). Replaying
+its real arguments from four threads gave no wrong result in 13,600 calls,
+so it is left alone until something shows it matters. (measured)
+
 ## What this adds up to
 
 Three of these can be fixed by binding, and are: the per-computation

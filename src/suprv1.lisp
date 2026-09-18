@@ -141,7 +141,10 @@
 	  *bfhalf* *bfmhalf*			; constants derived from it,
 	  *bfloat-header* *bfloat-header-prec*	; and the header memoized on it
 	  $multiplicities $%rnum_list $error $error_syms
-	  $linenum $integration_constant_counter))
+	  $linenum $integration_constant_counter
+	  *integrator-powerl*		; the integrator's working state,
+	  *superexpt-base* *superexpt-pow* *superexpt-exptflag*	; sin.lisp
+	  *subst4-rootform* *subst4-rootvar* *subst4-oldvar*))
 
 (defmacro with-thread-local-environment (&rest body)
   `(let (;; WIDTH, HEIGHT and DEPTH are declared special in displm.lisp
@@ -165,6 +168,16 @@
 	 ;; well.  No lock needed, which matters because the only lock
 	 ;; abstraction lives in parallel.lisp.
 	 *rule-symbol-pool*
+	 ;; NIL too, as in a fresh image.  These are the integrator's
+	 ;; working state in sin.lisp, which its functions keep between
+	 ;; calls of one another rather than pass.  Each is written before
+	 ;; it is read, so a thread starting empty computes exactly what the
+	 ;; serial code does.  Shared, one runner's SUPEREXPT or SUBST41
+	 ;; overwrote another's midway: measured, parallel integrate() of
+	 ;; %e^(i*%e^(%i*x)) differed from serial in 4 runs of 4 on SBCL.
+	 *integrator-powerl*
+	 *superexpt-base* *superexpt-pow* *superexpt-exptflag*
+	 *subst4-rootform* *subst4-rootvar* *subst4-oldvar*
 	 ;; VLIST is scratch in the same way.  VARLIST and GENVAR are not:
 	 ;; they carry CRE's variables, and ORDERPOINTER renumbers the whole
 	 ;; GENVAR list in place -- (prenumber genvar 1) writes each
