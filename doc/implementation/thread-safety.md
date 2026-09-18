@@ -261,6 +261,38 @@ Also per-lisp: `read()` takes `*STANDARD-INPUT*` under SBCL and CMUCL and
 `*QUERY-IO*` elsewhere (the `#+(or sbcl cmu)` in `src/macsys.lisp`), so a
 worker must bind both. (measured by the groundwork)
 
+## 11. Working arrays reached through a symbol
+
+Gaussian elimination (`TFGELI` and `TFGELI1`, `src/mat.lisp`) is handed
+its matrix as a **symbol** and reaches the array through that symbol's
+value (`GET-ARRAY-POINTER`). The functions that build the array store it
+with `(setf (symbol-value name) ...)`: `FORMX` for `SOLVEX`
+(`src/solve.lisp`, symbol `XA*`), and `MTOA` for the matrix functions
+(`src/matrix.lisp`, `*MAT*`) and for the Risch integrator's `LSA`
+(`src/risch.lisp`, `*JM*`). `TFGELI1` assigns its row and column
+permutations `*ROW*`, `*COL*` and `*COLINV*` in the same way. No owner
+bound its variable, so every call wrote one global value cell. For
+`XA*`, `*MAT*` and `*JM*` a search for assignments finds nothing, because
+the write goes through `SYMBOL-VALUE` and not a `SETQ`.
+
+**Measured** on SBCL, 48 parallel items and three workers, five runs
+each. Every run of `solve`, `linsolve`, `determinant` (`ratmx:true`),
+`rank`, `echelon`, `triangularize` and `invert_by_gausselim` failed,
+either with a Lisp error or by hanging until the time limit. Binding only
+`XA*` turned three of five `solve` runs into **wrong solutions with no
+error at all**. Four threads calling `LSA` directly hung without the
+`*JM*` binding. With each owner binding its own variable (issue #58), the
+same runs all return the serial answers.
+
+> The rule this gives: a symbol handed to a function as the **name of its
+> data** is a variable, and whoever builds the data must bind it.
+
+The same shape remains, not yet changed, in `src/linnew.lisp` (`tmlinsolve`
+and friends) and in the sparse determinant (`src/sprdet.lisp`,
+`src/newinv.lisp`), each with globals of its own. **Measured**: even a
+serial `determinant` under `sparse:true` still assigns the global `*ROW*`
+and `*COL*`, because `SPRDET` reaches `TMLATTICE` in `src/linnew.lisp`.
+
 ## What this adds up to
 
 Three of these can be fixed by binding, and are: the per-computation

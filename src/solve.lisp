@@ -939,7 +939,11 @@
 
 (defun solvex (eql varl ind flag &aux ($algebraic $algebraic))
   (declare (special xa*))
-  (prog (*varl ans varlist genvar xm* xn* mul*)
+  ;; XA* names the coefficient array FORMX builds and TFGELI eliminates
+  ;; in.  Bind it per call, so that concurrent solves never share it.  The
+  ;; outer declaration does not reach a binding made by PROG.
+  (prog (*varl ans varlist genvar xm* xn* mul* xa*)
+     (declare (special xa*))
      (setq *varl varl)
      (setq eql (mapcar #'(lambda (x) ($ratdisrep ($ratnumer x))) eql))
      (cond ((atom (ignore-rat-err (formx flag 'xa* eql varl)))

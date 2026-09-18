@@ -20,6 +20,9 @@
 (defmvar top* nil)
 (defmvar $matrix_element_transpose nil)
 
+;; MTOA builds the working array of an elimination in *MAT*, and the
+;; functions below pass it around by that name.  Each function that builds
+;; one binds *MAT* itself, so that concurrent calls never share an array.
 (defvar *mat*)
 
 (defun mxc (x)
@@ -148,7 +151,7 @@
 (defun det (m)
   (if (= (length m) 1)
       (caar m)
-      (let (*det* mul*)
+      (let (*det* mul* *mat*)
 	(mtoa '*mat* (setq *det* (length m)) *det* m)
 	(setq *det* (tfgeli0 '*mat* *det* *det*))
 	(ratreduce *det* mul*)))) 
@@ -216,7 +219,7 @@
    (setq ans (nconc ans (apdl l li)))
    (go loop)))
 
-(defun det1 (x)
+(defun det1 (x &aux *mat*)
   (cond ($sparse (mtoa '*mat* (length x) (length x) 
 		       (mapcar #'(lambda (x) (mapcar #'(lambda (y) (ncons y)) x))x))
 		 (sprdet '*mat* (length x)))
@@ -288,7 +291,7 @@
 					(pquotient (car *det*) (car elm))) 1))
 		 (t (ratinvert elm))))))
 
-(defun invert1 (k) 
+(defun invert1 (k &aux *mat*)
   (prog (l r g i m n)
      (setq l (length k) i 1) 
      (cond ((= l (length (car k))) nil)
@@ -382,7 +385,7 @@
     (setq x (cons '($matrix) (mxc (disreplist1 (echelon1 (replist1 (mcx (cdr x)))))))))
   (if $ratmx x ($totaldisrep x)))
 
-(defun echelon1 (x)
+(defun echelon1 (x &aux *mat*)
   (let ((m (length x))
 	(n (length (car x))))
     (mtoa '*mat* m n x)
@@ -409,7 +412,7 @@
 				       (t (setq a (aref name m j)) '(1 . 1))))))
      (go loop2)))
 
-(defun triang (x)
+(defun triang (x &aux *mat*)
   (let ((m (length x))
 	(n (length (car x)))
 	(*tri* t))
@@ -549,7 +552,7 @@
 ;; - JPG and BMT
  
 (defmfun $rank (x)
-  (let ((*rank* t) ($ratmx t) ($algebraic $algebraic))
+  (let ((*rank* t) ($ratmx t) ($algebraic $algebraic) *mat*)
     (newvarmat1 (setq x (check x)))
     (and (not $algebraic) (some #'algp varlist) (setq $algebraic t))
     (setq x (replist1 (mcx (cdr x))))

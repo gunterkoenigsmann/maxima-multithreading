@@ -446,3 +446,149 @@ length(sublist(makelist(is(f[i]=i^2), i, 1, 300), lambda([x], x#true)));
 (kill(all),0);
 
 0$
+
+/* Gaussian elimination keeps its working arrays in special variables
+   and passes them around by name: SOLVEX builds the coefficient matrix
+   in the value of XA*, the matrix functions build theirs in *MAT*, the
+   Risch integrator's LSA in *JM*, and TFGELI1 keeps its row and column
+   permutations in *ROW*, *COL* and *COLINV*.  Each must be bound by the
+   call that owns it.  Assigned globally, two runners eliminate in each
+   other's arrays: measured on SBCL, 48 parallel solve() calls of systems
+   with a unique solution failed with a Lisp error in 5 runs of 5, and
+   with only XA* bound 3 runs of 5 returned wrong solutions with no error
+   at all (GitHub issue #58).
+
+   These first checks need no threads.  Each operation must leave the
+   global value of all six variables exactly as it found it -- bound to
+   the same object, or unbound -- which is what keeps concurrent calls
+   out of each other's way. */
+(kill(all),
+ scratch_of(l) :=
+   map(lambda([s], if ?boundp(s) then [?symbol\-value(s)] else []), l),
+ elimination_scratch() :=
+   scratch_of(['?xa\*, '?\*row\*, '?\*col\*, '?\*colinv\*, '?\*mat\*,
+               '?\*jm\*]),
+ same_scratch(a, b) :=
+   every(lambda([p, q],
+                if p = [] then is(q = [])
+                else is(q # [] and ?eq(first(p), first(q)))),
+         a, b),
+ 0);
+
+0$
+
+(s0: elimination_scratch(),
+ [solve([x + y = 3, x - y = 1], [x, y]),
+  same_scratch(s0, elimination_scratch())]);
+
+[[[x = 2, y = 1]], true]$
+
+(s0: elimination_scratch(),
+ [linsolve([x + y + z = 6, x - y = 1, x + z = 4], [x, y, z]),
+  same_scratch(s0, elimination_scratch())]);
+
+[[x = 3, y = 2, z = 1], true]$
+
+(s0: elimination_scratch(),
+ [block([ratmx: true], determinant(matrix([2, 1, 0], [1, 3, 1], [0, 1, 4]))),
+  same_scratch(s0, elimination_scratch())]);
+
+[18, true]$
+
+/* The sparse determinant keeps its matrix in *MAT* too.  Only that is
+   checked here: its own routines still assign *ROW* and *COL* (through
+   TMLATTICE in linnew.lisp) and other globals of their own, which this
+   change leaves alone.  It also fails on larger matrices (issue #62);
+   this one is within what it gets right. */
+(s0: scratch_of(['?\*mat\*]),
+ [block([sparse: true], determinant(matrix([1, 2], [3, 4]))),
+  same_scratch(s0, scratch_of(['?\*mat\*]))]);
+
+[-2, true]$
+
+(s0: elimination_scratch(),
+ [rank(matrix([1, 2, 3], [2, 4, 6], [1, 0, 1])),
+  same_scratch(s0, elimination_scratch())]);
+
+[2, true]$
+
+(s0: elimination_scratch(),
+ [echelon(matrix([1, 2], [3, 4])), triangularize(matrix([1, 2], [3, 4])),
+  same_scratch(s0, elimination_scratch())]);
+
+[matrix([1, 2], [0, 1]), matrix([1, 2], [0, -2]), true]$
+
+(s0: elimination_scratch(),
+ [invert_by_gausselim(matrix([2, 1], [1, 1])),
+  same_scratch(s0, elimination_scratch())]);
+
+[matrix([1, -1], [-1, 2]), true]$
+
+/* This integrand reaches LSA through RISCHEXPVAR. */
+(s0: elimination_scratch(),
+ risch(%e^(2*cos(x))*cos(2*sin(x)), x),
+ same_scratch(s0, elimination_scratch()));
+
+true$
+
+/* The same operations in parallel, against the serial answers.  The
+   systems have unique solutions, so no %r parameters take part.  The
+   sleep makes sure the workers take items at all.  risch() is left out:
+   concurrent calls still lose closed forms for another reason (GitHub
+   issue #63). */
+(m(i) := matrix([i, 2, 3, 1], [4, i + 1, 6, 2], [7, 8, i + 2, 3],
+                [1, 0, 2, i]),
+ elimination_ops(i) :=
+   (?sleep(0.005),
+    [solve([x + y + z = i, x - y = 1, x + z = i^2], [x, y, z]),
+     linsolve([x + 2*y = i, 3*x - y = 1], [x, y]),
+     block([ratmx: true], determinant(m(i))),
+     rank(m(i)), echelon(m(i)), triangularize(m(i)),
+     invert_by_gausselim(m(i))]),
+ 0);
+
+0$
+
+(parallel_reset_counters(),
+ is(parallel_makelist(elimination_ops(i), i, 1, 32)
+    = makelist(elimination_ops(i), i, 1, 32)));
+
+true$
+
+(if parallel_threads_available()
+     then is(parallel_worker_items() > 0)
+     else is(parallel_worker_items() = 0));
+
+true$
+
+/* Against a reference that does not eliminate at all: Cramer's rule with
+   the default determinant, which expands by minors (TREEDET) and never
+   reaches TFGELI.  Each item also checks the eliminating determinant
+   against it, the inverse by multiplying back, and the rank.  It returns
+   its index on any disagreement, so a failure names the item. */
+(cramer_check(i) :=
+   block([a: m(i), b: [i, 1, i^2, 2], d, sol],
+     d: determinant(a),
+     sol: linsolve(makelist(sum(a[r, c]*v[c], c, 1, 4) = b[r], r, 1, 4),
+                   makelist(v[c], c, 1, 4)),
+     if is(map(rhs, sol)
+           = makelist(determinant(genmatrix(lambda([r, c],
+                                                   if c = k then b[r]
+                                                   else a[r, c]),
+                                            4, 4))/d,
+                      k, 1, 4))
+        and is(block([ratmx: true], determinant(a)) = d)
+        and is(ratsimp(a . invert_by_gausselim(a)) = ident(4))
+        and is(rank(a) = 4)
+     then 0 else i),
+ sublist(makelist(cramer_check(i), i, 1, 24), lambda([k], k # 0)));
+
+[]$
+
+sublist(parallel_makelist(cramer_check(i), i, 1, 24), lambda([k], k # 0));
+
+[]$
+
+(kill(all),0);
+
+0$
