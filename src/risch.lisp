@@ -893,7 +893,9 @@
 ;; by this file. -- cwh
 
 (defun lsa (mm)
-  (prog (d *mosesflag m2 risch-m)
+  ;; *JM* is bound here so that each call eliminates in its own array.
+  (prog (d *mosesflag m2 risch-m *jm*)
+     (declare (special *jm*))
      (setq d (length (car mm)))
      ;; MTOA stands for MATRIX-TO-ARRAY.  An array is created and
      ;; associated functionally with the symbol *JM.  The elements

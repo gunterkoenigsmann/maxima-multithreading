@@ -175,8 +175,10 @@
 		      dependentrows inconsistentrows))
 
 (defun tfgeli1 (ax *n* *m*)
+  ;; *ROW*, *COL* and *COLINV* are this elimination's permutations, so
+  ;; each call binds its own rather than assigning the shared ones.
   (prog (delta variableorder inconsistentrows
-	 dependentrows nrow nvar rank permsign result)
+	 dependentrows nrow nvar rank permsign result *row* *col* *colinv*)
      (setq ax (get-array-pointer ax))
      (setq *col* (make-array (1+ *m*) :initial-element 0))
      (setq *row* (make-array (1+ *n*) :initial-element 0))
