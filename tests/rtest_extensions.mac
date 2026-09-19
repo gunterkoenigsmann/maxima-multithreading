@@ -19,6 +19,25 @@ algfac(x^3-x-1,a^3-a-1);
 primelmt(x^2+a*x+a^2-1,a^3-a-1,b);
 [b^6-6*b^4+9*b^2+23,x+2*a]$
 
+/* primelmt orders the variables itself: neither an earlier call in the
+same evaluation nor the user's ratvars may change the answer */
+
+[primelmt(x^2+a*x+a^2-1,a^3-a-1,b),primelmt(x^2+a*x+a^2-1,a^3-a-1,b)];
+[[b^6-6*b^4+9*b^2+23,x+2*a],[b^6-6*b^4+9*b^2+23,x+2*a]]$
+
+(ratvars(x,a),primelmt(x^2+a*x+a^2-1,a^3-a-1,b));
+[b^6-6*b^4+9*b^2+23,x+2*a]$
+
+ratvars();
+[]$
+
+/* A parallel runner evaluates many elements in one evaluation, so this
+   is the same requirement again */
+
+is(parallel_makelist(primelmt(x^2+a*x+a^2-1,a^3-a-1,b),i,1,16)
+   = makelist([b^6-6*b^4+9*b^2+23,x+2*a],i,1,16));
+true$
+
 /* One recovers the splitting polynomial obtained by splitfield. Moreover
 this is an example where the prime element is of the form x+n*a with n > 1 */
 

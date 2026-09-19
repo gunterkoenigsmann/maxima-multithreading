@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* primelmt() orders the variables it needs from an empty varlist, so a
+  second call in one evaluation, a call after ratvars() and concurrent
+  calls no longer fail with a Lisp error.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
