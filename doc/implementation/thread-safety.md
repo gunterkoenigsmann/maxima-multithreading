@@ -38,6 +38,7 @@ binding, and no caller or callee has to change.
 | `VARLIST`, `GENVAR`, `VLIST` | `src/rat3*.lisp` | CRE's variables and their ordering |
 | `TSTACK`, `*LOCAL-SIGNS*`, `$MULTIPLICITIES`, `$%RNUM_LIST`, `$ERROR`, `$ERROR_SYMS`, `$LINENUM`, `$GENSUMNUM`, `$INTEGRATION_CONSTANT_COUNTER` | various | state of one line of computation |
 | `$PIECE` | `src/globals.lisp` | the part the last `part()`/`inpart()` selected; read right afterwards by `trgsmp.mac` and other share packages (issue #66) |
+| `SN*`, `SD*` | `src/csimp2.lisp` | numerator and denominator factors `PRODND` hands back to `COMDENOM` (`xthru`); bound by `COMDENOM` itself (issue #70) |
 
 `WITH-THREAD-LOCAL-ENVIRONMENT` (`src/suprv1.lisp`) binds these.
 **Measured** by the groundwork on a `SIGN`-shaped protocol raced between
