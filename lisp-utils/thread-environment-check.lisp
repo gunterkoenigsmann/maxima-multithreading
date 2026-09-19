@@ -53,7 +53,10 @@
     $linenum $integration_constant_counter
     ;; output attribution and the question channel
     *standard-output* *error-output* *trace-output*
-    *query-io* *standard-input*)
+    *query-io* *standard-input*
+    ;; the integrator's working state in sin.lisp
+    *integrator-powerl* *superexpt-base* *superexpt-pow*
+    *superexpt-exptflag* *subst4-rootform* *subst4-rootvar* *subst4-oldvar*)
   "What WITH-THREAD-LOCAL-ENVIRONMENT is expected to bind.  Kept here
 rather than derived from the macro on purpose: a check that reads its
 expectations out of the thing it is checking cannot fail.")

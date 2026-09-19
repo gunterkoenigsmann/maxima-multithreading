@@ -97,10 +97,14 @@
 ;;; Check if the problem can be transformed or solved by special methods.
 ;;; 11 Methods are implemented by Moses, some more have been added.
 
-(let (powerl)
+(defvar *integrator-powerl* nil
+  "POWERL of INTFORM and INTEGRATOR below.")
+
+(symbol-macrolet ((powerl *integrator-powerl*))
   ;; POWERL is initialized in INTEGRATOR to NIL and can be modified in
   ;; INTFORM in certain cases and is read by INTEGRATOR in some cases.
-  ;; Instead of a global special variable, use a closure.
+  ;; It stands for a special that WITH-THREAD-LOCAL-ENVIRONMENT binds per
+  ;; thread: a closure over a top-level LET is one cell for every thread.
 
   ;; It would be really good to get rid of the special variable *EXP*
   ;; used only in INTFORM and INTEGRATOR.  I (rtoy) haven't been able
@@ -814,10 +818,20 @@
 ;;;   integrate(exp(x+1)/(1+exp(x)),x)
 ;;;   integrate(10^x*exp(x),x)
 
-(let ((base nil)       ; The common base.
-      (pow nil)       ; The common power of the form b*x+a. The values are
-                      ; stored in a list which is returned from m2.
-      (exptflag nil)) ; When T, the substitution is not possible.
+;; BASE, POW and EXPTFLAG stand for specials that
+;; WITH-THREAD-LOCAL-ENVIRONMENT binds per thread.  As a closure over a
+;; top-level LET they were one cell for every thread, and one runner's
+;; SUPEREXPT overwrote them while another's ELEMXPT was reading them.
+(defvar *superexpt-base* nil)
+(defvar *superexpt-pow* nil)
+(defvar *superexpt-exptflag* nil)
+
+(symbol-macrolet ((base *superexpt-base*)   ; The common base.
+                  (pow *superexpt-pow*)     ; The common power of the form
+                                            ; b*x+a. The values are stored
+                                            ; in a list returned from m2.
+                  (exptflag *superexpt-exptflag*)) ; When T, the
+                                            ; substitution is not possible.
   
   (defun superexpt (expr var2 bas1 pow1)
     (prog (y ($logabs nil) new-var)
@@ -889,7 +903,7 @@
                         ((mexpt)
                          ,new-var
                          ((mquotient) b bb)))))))
-) ; End of let
+) ; End of symbol-macrolet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;
@@ -989,9 +1003,19 @@
      ;; Substitute back and return the result.
      (return (substint (power ratroot2 (power k -1)) new-var y var2 expr)))))
 
-(let ((rootform nil) ; Expression of the form x = (b*e-d*t^k)/(c*t^k-e*a).
-      (rootvar nil)  ; The variable we substitute for the root (new-var).
-      (oldvar nil))  ; The original integration variable (var2).
+;; ROOTFORM, ROOTVAR and OLDVAR stand for specials that
+;; WITH-THREAD-LOCAL-ENVIRONMENT binds per thread, for the same reason as
+;; SUPEREXPT's state above.
+(defvar *subst4-rootform* nil)
+(defvar *subst4-rootvar* nil)
+(defvar *subst4-oldvar* nil)
+
+(symbol-macrolet ((rootform *subst4-rootform*) ; Expression of the form
+                                        ; x = (b*e-d*t^k)/(c*t^k-e*a).
+                  (rootvar *subst4-rootvar*) ; The variable we substitute
+                                        ; for the root (new-var).
+                  (oldvar *subst4-oldvar*)) ; The original integration
+                                        ; variable (var2).
   
   (defun subst4 (ex k ratroot2)
     (cond ((freevar2 ex oldvar)
@@ -1015,7 +1039,7 @@
     ;; At this point resimplify, because it is not guaranteed, that a correct 
     ;; simplified expression is returned.
     (resimplify (subst4 expr k ratroot2)))
-) ; End of let
+) ; End of symbol-macrolet
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 

@@ -1,0 +1,71 @@
+/* The integrator keeps working state between calls of its own functions
+   (src/sin.lisp): SUPEREXPT's common base, power and failure flag, which
+   ELEMXPT reads and sets, SUBST41's root form and variables for SUBST4,
+   and POWERL for INTFORM and INTEGRATOR.  These were closures over
+   top-level LETs, one cell for every thread, and are now specials each
+   thread binds for itself (GitHub issue #63).  Shared, parallel
+   integrate(%e^(i*%e^(%i*x)), x) differed from serial in every run, and
+   with a factor %e^(%i*x) a worker took another method altogether. */
+(kill(all), 0);
+0$
+
+(load(file_search("parallel-integrator-check.lisp", file_search_tests)), 0);
+0$
+
+/* The state lives in those specials, where WITH-THREAD-LOCAL-ENVIRONMENT
+   can give each thread its own. */
+(integrate(%e^(2*%e^x), x), ?\*superexpt\-base\*);
+%e$
+
+(integrate(x*((2*x + 1)/(x + 3))^(1/2), x), ?\*subst4\-oldvar\*);
+x$
+
+/* Real workers of one parallel job, released together, each with its
+   own data; every result must equal the serial one.  Before the change
+   both failed in every run on SBCL, CCL and ECL.  Without native threads
+   there is nothing to race and they are true. */
+parallel_subst41_check();
+true$
+
+parallel_superexpt_check();
+true$
+
+/* The same through the public scheduler, against the serial answers */
+(f(i) := integrate(%e^(i*%e^(%i*x)), x),
+ parallel_reset_counters(),
+ is(parallel_makelist((?sleep(0.002), f(i)), i, 1, 48)
+    = makelist(f(i), i, 1, 48)));
+true$
+
+(if parallel_threads_available()
+     then is(parallel_worker_items() > 0)
+     else is(parallel_worker_items() = 0));
+true$
+
+(g(i) := integrate(%e^(i*%e^(%i*x))*%e^(%i*x), x),
+ is(parallel_makelist((?sleep(0.002), g(i)), i, 1, 48)
+    = makelist(g(i), i, 1, 48)));
+true$
+
+/* The serial answers of both methods, and an independent check of each
+   against numerical quadrature on [0, 1]. */
+integrate(%e^(2*%e^x), x);
+-gamma_incomplete(0, -(2*%e^x))$
+
+(F: integrate(%e^(2*%e^x), x),
+ q: quad_qags(%e^(2*%e^x), x, 0, 1),
+ [last(q), is(abs(float(rectform(subst(x = 1, F) - subst(x = 0, F)))
+                  - first(q)) < 1e-9)]);
+[0, true]$
+
+integrate(%e^(2*%e^(%i*x))*%e^(%i*x), x);
+-((%e^(2*%e^(%i*x))*%i)/2)$
+
+(G: integrate(x*((2*x + 1)/(x + 3))^(1/2), x),
+ q: quad_qags(x*((2*x + 1)/(x + 3))^(1/2), x, 0, 1),
+ [last(q), is(abs(float(rectform(subst(x = 1, G) - subst(x = 0, G)))
+                  - first(q)) < 1e-9)]);
+[0, true]$
+
+(kill(all), 0);
+0$
