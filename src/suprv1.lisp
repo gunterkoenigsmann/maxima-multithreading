@@ -169,8 +169,17 @@
 	 ;; they carry CRE's variables, and ORDERPOINTER renumbers the whole
 	 ;; GENVAR list in place -- (prenumber genvar 1) writes each
 	 ;; symbol's value cell, which is what POINTERGP orders by.  Two
-	 ;; threads sharing that list would renumber each other's variables
-	 ;; mid-computation.  A worker therefore needs its own.
+	 ;; threads sharing those symbols would renumber each other's
+	 ;; variables mid-computation.  A worker therefore starts with an
+	 ;; empty GENVAR and makes symbols of its own: bound to the caller's
+	 ;; list it would get its own binding of the caller's symbols, which
+	 ;; RAT, unlike RATSIMP, uses and renumbers as it finds them.
+	 ;; Measured on SBCL, 48 parallel rat() calls on one and on four
+	 ;; variables, 10 times over, mixed up variables between elements in
+	 ;; 44 of 480 that way, and 48 parallel trigrat() calls left the
+	 ;; caller's genvar in 10 of 480 results; none did with the empty
+	 ;; list.  VARLIST keeps the caller's value, the variable ordering
+	 ;; ratvars() sets, since nothing changes that list in place.
 	 ;;
 	 ;; An earlier version of this comment warned that CRE objects made
 	 ;; in different workers would carry inconsistent orderings and
@@ -181,7 +190,7 @@
 	 ;; variables the session had never seen, where each runner does
 	 ;; make its own genvar.  Keep the bindings; drop the warning.
 	 vlist
-	 (varlist varlist) (genvar genvar)
+	 (varlist varlist) genvar
 	 ;; A FRESH array, not the one we were handed: LINEARRAY is DISPLA's
 	 ;; scratch for laying a expression out, so sharing it is the whole
 	 ;; problem.  Two threads displaying at once scribble over each

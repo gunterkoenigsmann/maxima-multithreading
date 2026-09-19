@@ -51,6 +51,32 @@ is(parallel_makelist(ratsimp((x^i - 1)/(x - 1)), i, 1, 12)
    = makelist(ratsimp((x^i - 1)/(x - 1)), i, 1, 12));
 true$
 
+/* rat(), unlike ratsimp(), converts with the GENVAR list it finds, and
+   renumbers its symbols' value cells, which rank the variables.  So a
+   worker must start with a list of its own rather than share the
+   caller's symbols: shared, one runner's ranks were rewritten by another
+   midway and results mixed up variables between elements -- x turned up
+   in the quotient in a, b, c and d, 44 (SBCL) and 15 (CCL) times in 480
+   (GitHub issue #80).  The serial reference leaves genvars in the
+   caller's list; the comparison comes in the next input, which starts
+   with an empty VARLIST, as every input does, so that each element
+   ranks only its own variables. */
+
+(rat_mix(i) := if oddp(i) then ratdisrep(rat((x + i)^4/(x - 1)))
+               else ratdisrep(rat((a + b + c + d + i)^3/(a - b))),
+ rat_mix_ref: makelist(rat_mix(i), i, 1, 48),
+ 0);
+0$
+
+(parallel_reset_counters(),
+ [length(sublist(makelist(is(parallel_makelist(rat_mix(i), i, 1, 48)
+                             = rat_mix_ref), rep, 1, 10),
+                 lambda([same], not same))),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[0, true]$
+
 /* solve() exercises the %r numbering in $%RNUM_LIST, which is bound per
    thread and would otherwise make results depend on completion order */
 
