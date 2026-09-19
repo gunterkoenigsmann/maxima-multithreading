@@ -373,7 +373,21 @@ runs of 4 before, and matched serial in 4 of 4 with the binding. `lsquares_estim
 (`share/lsquares/lsquares.mac`) kept the stationary points from `solve()`
 in the global `solutions`. **Measured**: 7 to 18 of 48 parallel exact fits
 fell back to numerical approximations, e.g. `a = 3.00085` for `a = 3`.
-`solutions` is now a `block` local. The same issue lists `eigenvalues`,
+`solutions` is now a `block` local.
+
+`simplify_sum` (`share/solve_rec/simplify_sum.mac`) had both kinds of
+problem: variables it forgot to make locals (`polypart`, `support`, `dif`,
+`ni_coeffs`, `quolim`), and **contexts named by recursion depth alone**
+(`ss_context1`, `ss_context`, `sum_by_integral1`), killing any existing
+context of that name first. Concurrent sums therefore killed and re-created
+each other's contexts. **Measured**: 24 parallel sums differed from serial
+in 3 runs of 3 on SBCL. On CCL they raised `supcontext: no such context`,
+overflowed the value stack, or ended a `run_testsuite()` session silently
+(7 of 30 runs), against 0 of 20 once every call worked in a context of its
+own. The same name clash crashes Maxima even serially: with a user context
+`ss_context1` current, the old code killed it and re-created it beneath
+itself, and CLISP died with "Program stack overflow". The same issue lists
+`eigenvalues`,
 `eigenvectors` and `trigrat` as failing in parallel, with their causes not
 yet established.
 

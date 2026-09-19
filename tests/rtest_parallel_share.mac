@@ -123,3 +123,66 @@ sublist(makelist(i, i, 1, 48),
 
 (kill(all), 0);
 0$
+
+/* simplify_sum (share/solve_rec/simplify_sum.mac) assigned polypart,
+   support and dif -- and, on paths not reached here, ni_coeffs and
+   quolim -- without making them block locals; support was even meant to
+   be one, but the local list said supp.  It also worked in contexts
+   named by recursion depth alone (ss_context1, ...), killing any
+   existing context of that name first.  Concurrent sums shared both:
+   measured, 24 parallel simplify_sum() of a rational summand differed
+   from serial in 3 runs of 3 on SBCL, and on CCL raised "supcontext: no
+   such context", overflowed the value stack, or ended a run_testsuite()
+   session silently.  The variables are now block locals, and every call
+   works in a context of its own. */
+(kill(all), load(simplify_sum), 0);
+0$
+
+/* No thread needed: the rational-function path (polypart) and the
+   Zeilberger path with its check (support, dif) leave the globals
+   alone. */
+(polypart: 'm1, support: 'm2, dif: 'm3,
+ r: [simplify_sum(sum((k^2 + k + 1)/(k + 1), k, 0, n)),
+     simplify_sum(sum(binomial(n, k)*2^k, k, 0, n))],
+ [r, polypart, support, dif]);
+[[harmonic_number(n + 1) + (n^2 + n)/2, 3^n], m1, m2, m3]$
+
+(kill(polypart, support, dif), 0);
+0$
+
+/* A user context that happens to carry such a name survives, facts
+   included. */
+(newcontext(ss_context1), assume(zz > 0),
+ simplify_sum(sum(binomial(n, k)*2^k, k, 0, n)),
+ [member(ss_context1, contexts), facts(ss_context1)]);
+[true, [zz > 0]]$
+
+(killcontext(ss_context1), 0);
+0$
+
+/* The serial answers first: whatever simplify_sum loads on first use
+   is then loaded before the parallel region, where loading is refused. */
+(s1(i) := simplify_sum(sum((k^2 + i*k + 1)/(k + 1), k, 0, n)),
+ s2(i) := simplify_sum(sum(binomial(n, k)*i^k, k, 0, n)),
+ ref: makelist([s1(i), s2(i)], i, 1, 24),
+ parallel_reset_counters(),
+ r: parallel_makelist((?sleep(0.002), [s1(i), s2(i)]), i, 1, 24),
+ is(r = ref));
+true$
+
+(if parallel_threads_available()
+     then is(parallel_worker_items() > 0)
+     else is(parallel_worker_items() = 0));
+true$
+
+/* Each parallel closed form against direct summation at n = 6 */
+sublist(makelist(i, i, 1, 24),
+        lambda([i],
+               is(ratsimp(subst(n = 6, first(r[i]))
+                          - sum((k^2 + i*k + 1)/(k + 1), k, 0, 6)) # 0)
+               or is(subst(n = 6, second(r[i]))
+                     # sum(binomial(6, k)*i^k, k, 0, 6))));
+[]$
+
+(kill(all), 0);
+0$
