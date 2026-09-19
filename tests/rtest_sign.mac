@@ -2641,6 +2641,20 @@ block([b],
 [nz, nz, pz];
 
 
+/* forget() removes a fact of an active context only.  A fact of another,
+   inactive context with the same content is that context's own and must
+   survive, even though it can come first on the node forget() searches
+   (GitHub issue #94). */
+(supcontext(ctx_forget_a), assume(x > 0),
+ context: initial, supcontext(ctx_forget_b), assume(x > 0),
+ context: ctx_forget_a,
+ [forget(x > 0), is(x > 0), (context: ctx_forget_b, is(x > 0))]);
+[[x > 0], unknown, true];
+
+(context: initial, killcontext(ctx_forget_a), killcontext(ctx_forget_b),
+ contexts);
+[initial, global];
+
 /**************************************/
 /* Leave this at the end of the file! */
 /**************************************/

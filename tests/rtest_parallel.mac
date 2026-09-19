@@ -340,6 +340,24 @@ errcatch(do_parallel([1, 1/0, 3]));
 (kill(all), 0);
 0$
 
+/* A definite integral assumes facts about its variable and forgets them
+   again.  forget() must remove the fact of its own context: taking the
+   first matching fact of any context, one runner's integral deleted the
+   assumptions of another runner integrating over the same variable, whose
+   integral then came back unevaluated -- measured, 10 to 28 of 48 to 96
+   parallel integrals of sqrt(x+1/x-2) over [0, 1] (GitHub issue #94). */
+
+(forget_int(i) := integrate(sqrt(x + 1/x - 2), x, 0, 1),
+ forget_int(0));
+4/3$
+
+(parallel_reset_counters(),
+ [sublist(parallel_makelist(forget_int(i), i, 1, 16), lambda([r], r # 4/3)),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[[], true]$
+
 /* Exact large integers shared by parallel runners (GitHub issue #37). */
 (kill(all),0);
 

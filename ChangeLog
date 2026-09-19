@@ -1,6 +1,11 @@
 Maxima 5.50-post change log
 ===========================
 
+* forget() removes the fact of an active context when several contexts hold
+  the same fact, instead of whichever came first; it no longer deletes
+  another context's assumption and keeps its own. Concurrent definite
+  integrals over the same variable no longer come back unevaluated.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
