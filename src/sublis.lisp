@@ -18,7 +18,7 @@
    simplification after the SUBLIS or whether you have to do an
    EV to get things to apply. A value of TRUE means perform the application.")
 
-(declare-top (special *msublis-marker*))
+(declare-top (special *msublis-table*))
 
 ;;; SUBLIS([sym1=form1,sym2=form2,...],expression)$
 ;;;
@@ -44,33 +44,31 @@
 	 (merror (intl:gettext "sublis: first argument must a list; found: ~M") substitutions)))
   (msublis substitutions form))
 
+;; The substitutions are kept in a table of this call's own, not on the
+;; property lists of the symbols: those are shared by every thread, and
+;; concurrent calls substituting for the same symbol would find each
+;; other's entries.
 (defun msublis (s y)
-  (declare (special s))
-  (let ((*msublis-marker* (copy-symbol '*msublis-marker* nil)))
-    (msublis-setup)
-    (unwind-protect (msublis-subst y t) (msublis-unsetup))))
+  (let ((*msublis-table* (make-hash-table :test #'eq)))
+    (msublis-setup s)
+    (msublis-subst y t)))
 
-(defun msublis-setup ()
-  (declare (special s))
+;; S holds the equations in reverse order, so for a symbol given twice the
+;; earlier equation is stored last and wins.
+(defun msublis-setup (s)
   (do ((x s (cdr x)) (temp) (temp1)) ((null x))
     (cond ((not (symbolp (setq temp (caar x))))
 	   (merror (intl:gettext "sublis: left-hand side of equation must be a symbol; found: ~M") temp)))
-    (setf (symbol-plist temp) (list* *msublis-marker* (cdar x) (symbol-plist temp)))
+    (setf (gethash temp *msublis-table*) (cdar x))
     (cond ((not (eq temp (setq temp1 (getopr temp))))
-	   (setf (symbol-plist temp1) (list* *msublis-marker* (cdar x) (symbol-plist temp1)))
-	   (push (ncons temp1) s)))))	; Remember extra cleanup
-
-(defun msublis-unsetup ()
-  (declare (special s))
-  (do ((x s (cdr x))) ((null x)) (remprop (caar x) *msublis-marker*)))
+	   (setf (gethash temp1 *msublis-table*) (cdar x))))))
 
 (defun msublis-subst (form flag)
   (cond ((atom form)
 	 (cond ((and (null form) (not flag)) nil) ;preserve trailing NILs
 	       ((symbolp form)
-		(cond ((eq (car (symbol-plist form)) *msublis-marker*)
-		       (cadr (symbol-plist form)))
-		      (t form)))
+		(multiple-value-bind (value found) (gethash form *msublis-table*)
+		  (if found value form)))
 	       (t form)))
 	(flag
 	 (cond (($ratp form)

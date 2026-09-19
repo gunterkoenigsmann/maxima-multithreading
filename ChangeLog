@@ -1,6 +1,11 @@
 Maxima 5.50-post change log
 ===========================
 
+* Keep the substitutions of sublis in a table private to each call instead
+  of on the symbols' property lists, so concurrent calls no longer miss
+  each other's substitutions. This also makes parallel eigenvectors
+  return normalized eigenvectors.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
