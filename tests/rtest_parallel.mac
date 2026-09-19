@@ -245,6 +245,25 @@ errcatch(parallel(for i: 1 thru 4 do (if i = 2 then return(9))));
      else is(parallel_worker_items() = 0));
 true$
 
+/* tex() breaks long output lines at a column it counts as it writes.  The
+   column is bound per call; one column shared by all threads moved each
+   other's line breaks -- measured, 205 (SBCL) and 234 (CCL) of 240
+   parallel tex() strings with frequent breaks differed from serial ones
+   (GitHub issue #95). */
+
+(tex_item(i) := block([linel: 40 + mod(i, 7)],
+   tex(sum(x^k/(k + i), k, 1, 12) + matrix([i, 2], [3, i^2]), false)),
+ tex_ref: makelist(tex_item(i), i, 1, 48),
+ 0);
+0$
+
+(parallel_reset_counters(),
+ [is(parallel_makelist(tex_item(i), i, 1, 48) = tex_ref),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[true, true]$
+
 /* and it draws on the same one session-wide budget */
 
 (parallel_reset_counters(),
