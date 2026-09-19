@@ -157,6 +157,43 @@ is(parallel_makelist(parallel_makelist(i*j, j, 1, 4), i, 1, 4)
    = makelist(makelist(i*j, j, 1, 4), i, 1, 4));
 true$
 
+/* newdet() and permanent() keep their working arrays in the specials
+   *BINOM*, *MINOR1*, *INPUT* and *I*, which have no global value.  Each
+   call must bind them: assigned, concurrent calls worked in each other's
+   arrays -- measured, 48 parallel newdet()/permanent() pairs failed with
+   Lisp errors in 5 runs of 5 on SBCL and CCL (GitHub issue #85).  The
+   first check needs no threads: a call must leave the global value of
+   all four as it found it -- bound to the same object, or unbound. */
+
+(newdet_scratch() :=
+   map(lambda([s], if ?boundp(s) then [?symbol\-value(s)] else []),
+       ['?\*binom\*, '?\*minor1\*, '?\*input\*, '?\*i\*]),
+ newdet_before: newdet_scratch(),
+ [ratdisrep(newdet(matrix([1, 2, 3], [4, 5, 6], [7, 8, 10]))),
+  ratdisrep(permanent(matrix([1, 2], [3, 4]))),
+  is(newdet_scratch() = newdet_before)]);
+[-3, 10, true]$
+
+(newdet_ms: block([state: make_random_state(false), ms],
+   set_random_state(make_random_state(11)),
+   ms: makelist(genmatrix(lambda([i, j], random(19) - 9),
+                          3 + mod(k, 4), 3 + mod(k, 4)), k, 1, 48),
+   set_random_state(state),
+   ms),
+ newdet_pair(k) := [ratdisrep(newdet(newdet_ms[k])),
+                    ratdisrep(permanent(newdet_ms[k]))],
+ newdet_ref: makelist(newdet_pair(k), k, 1, 48),
+ every(lambda([k], is(newdet_ref[k][1] = determinant(newdet_ms[k]))),
+       makelist(k, k, 1, 48)));
+true$
+
+(parallel_reset_counters(),
+ [is(parallel_makelist(newdet_pair(k), k, 1, 48) = newdet_ref),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[true, true]$
+
 /* --- errors inside a body reach the caller --- */
 
 errcatch(parallel_makelist(if i = 3 then 1/0 else i, i, 1, 5));

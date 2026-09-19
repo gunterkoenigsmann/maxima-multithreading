@@ -128,8 +128,10 @@
             (length (cdadr mat))))
          (newdet mat (length (cdr mat)) t))))
 
+;; The arrays live in special variables, which PASCAL reads too.  NEWDET
+;; binds them, so that concurrent calls each work in arrays of their own.
 (defun newdet (a n perm)
-  (prog (rr k j old new vlist m loc addr sign)
+  (prog (rr k j old new vlist m loc addr sign *i* *minor1* *binom* *input*)
      (when (> n 50)
        (merror (intl:gettext "newdet: matrix must be 50 by 50 or smaller; found size: ~M") n))
      (setq  *binom* (make-array (list (1+ n) (1+ n)) :element-type 'integer))
