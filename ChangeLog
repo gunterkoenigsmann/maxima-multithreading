@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Give each factorization its own working prime, so concurrent factor()
+  calls on multivariate polynomials no longer fail with "CQUOTIENT:
+  quotient is not exact".
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
