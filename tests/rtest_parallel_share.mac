@@ -83,3 +83,43 @@ makelist(f(i), i, 1, 3);
 
 (kill(all), 0);
 0$
+
+/* lsquares_estimates_exact (share/lsquares/lsquares.mac) kept the
+   stationary points solve() returns in a global variable, solutions.
+   Concurrent calls then lost each other's exact solution and fell back
+   to numerical minimization: measured on SBCL, 7 to 18 of 48 parallel
+   fits returned approximations such as a = 3.00085, b = -1.0020 where
+   the exact fit is a = 3, b = -1.  solutions is now a block local. */
+(kill(all), load(lsquares), 0);
+0$
+
+/* No thread needed: a fit leaves the global solutions alone. */
+(solutions: 'solutions_marker,
+ r: lsquares_estimates(matrix([1, 2], [2, 5], [3, 8]), [x, y],
+                       y = a*x + b, [a, b]),
+ [r, solutions]);
+[[[a = 3, b = -1]], solutions_marker]$
+
+(kill(solutions), 0);
+0$
+
+/* The data lie exactly on y = (i + 1)*x - 1, so every fit must be that
+   line, exactly, in parallel as well as serially. */
+(fit(i) := lsquares_estimates(matrix([1, i], [2, 2*i + 1], [3, 3*i + 2]),
+                              [x, y], y = a*x + b, [a, b]),
+ parallel_reset_counters(),
+ r: parallel_makelist((?sleep(0.002), fit(i)), i, 1, 48),
+ is(r = makelist(fit(i), i, 1, 48)));
+true$
+
+(if parallel_threads_available()
+     then is(parallel_worker_items() > 0)
+     else is(parallel_worker_items() = 0));
+true$
+
+sublist(makelist(i, i, 1, 48),
+        lambda([i], is(r[i] # [[a = i + 1, b = -1]])));
+[]$
+
+(kill(all), 0);
+0$
