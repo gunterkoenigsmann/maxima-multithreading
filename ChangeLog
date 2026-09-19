@@ -1,6 +1,9 @@
 Maxima 5.50-post change log
 ===========================
 
+* Keep nusum's term ratio and coefficients in locals, so concurrent nusum
+  calls no longer return each other's or mixed closed forms.
+
 * Give each allroots and bfallroots call its own coefficient and work
   arrays. Concurrent calls could otherwise return errors, partial results
   or roots of another call's polynomial.

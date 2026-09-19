@@ -1,0 +1,50 @@
+/* Share packages written in Maxima keep state in Maxima variables.  A
+   variable a function assigns without making it a block local is one
+   global value cell shared by every thread (GitHub issue #66).
+
+   nusum (share/algebra/nusum.mac) declares %r and %cf as global
+   variables and used to assign them from nusuml.  Concurrent calls mixed
+   each other's term ratio and coefficients: measured on SBCL, 48
+   parallel calls of nusum(k^2 + i, k, 1, n) differed from serial in 4
+   runs of 4, e.g. a rational function carrying a free parameter %r50 for
+   a polynomial sum. */
+(kill(all), 0);
+0$
+
+/* Load the package serially first: loading in a parallel body is
+   refused on purpose. */
+(nusum(k, k, 1, n), 0);
+0$
+
+/* No thread needed: a call leaves the global %r and %cf alone. */
+(%r: 17, %cf: 19, s: nusum(k^2 + 1, k, 1, n), [s, %r, %cf]);
+[(n*(2*n^2 + 3*n + 7))/6, 17, 19]$
+
+(kill(%r, %cf, s), 0);
+0$
+
+/* Serial answers, checked independently by summing directly. */
+(f(i) := nusum(k^2 + i, k, 1, n),
+ sublist(makelist(i, i, 1, 12),
+         lambda([i], not every(lambda([m], is(subst(n = m, f(i))
+                                              = sum(k^2 + i, k, 1, m))),
+                               makelist(m, m, 0, 8)))));
+[]$
+
+/* In parallel, against serial, and each result against direct sums */
+(parallel_reset_counters(),
+ r: parallel_makelist((?sleep(0.002), f(i)), i, 1, 48),
+ is(r = makelist(f(i), i, 1, 48)));
+true$
+
+(if parallel_threads_available()
+     then is(parallel_worker_items() > 0)
+     else is(parallel_worker_items() = 0));
+true$
+
+sublist(makelist(i, i, 1, 48),
+        lambda([i], is(subst(n = 7, r[i]) # sum(k^2 + i, k, 1, 7))));
+[]$
+
+(kill(all), 0);
+0$
