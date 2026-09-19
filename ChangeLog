@@ -1,6 +1,9 @@
 Maxima 5.50-post change log
 ===========================
 
+* Keep lsquares_estimates' exact solutions in a local, so concurrent fits
+  no longer lose each other's exact result and fall back to approximations.
+
 * Give each xthru call its own numerator and denominator scratch, so
   concurrent calls no longer combine each other's factors into wrong
   results.

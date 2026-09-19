@@ -284,7 +284,9 @@ lsquares_estimates_exact (MSE, parameters) := block
     %e_to_numlog : true,
     logexpand : all,
     solveexplicit : true,
-    equations],
+    /* solutions is a local like equations, so that concurrent calls do
+       not share it. */
+    equations, solutions],
 
     MSE : ev (MSE, nouns),
     equations : map (lambda ([x], diff (%%, x)), parameters),

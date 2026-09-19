@@ -369,9 +369,13 @@ globally) changed nothing. The fix makes them locals of `nusuml`'s `block`
 `trigsimp` failed for a core reason instead: `trgsmp.mac` reads `piece`
 right after `inpart()`, and `$PIECE` was shared. It is now bound per
 thread (sec. 1). **Measured**: 48 parallel `trigsimp()` calls failed in 4
-runs of 4 before, and matched serial in 4 of 4 with the binding. The same
-issue lists `eigenvalues`, `eigenvectors` and `trigrat` as failing in
-parallel, with their causes not yet established.
+runs of 4 before, and matched serial in 4 of 4 with the binding. `lsquares_estimates_exact`
+(`share/lsquares/lsquares.mac`) kept the stationary points from `solve()`
+in the global `solutions`. **Measured**: 7 to 18 of 48 parallel exact fits
+fell back to numerical approximations, e.g. `a = 3.00085` for `a = 3`.
+`solutions` is now a `block` local. The same issue lists `eigenvalues`,
+`eigenvectors` and `trigrat` as failing in parallel, with their causes not
+yet established.
 
 ## What this adds up to
 
