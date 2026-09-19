@@ -78,6 +78,28 @@ true$
  is(contexts = c0));
 true$
 
+/* NUMDEN leaves a numerator and a denominator in NN* and DN* for its
+   caller to read, and residue() is one such caller.  Each runner needs
+   its own pair: shared, residue() read another element's quotient --
+   measured, 27 to 42 of these 48 elements came back wrong in every run
+   on SBCL and CCL (GitHub issue #82).  Each element sums 30 residues
+   minus their known values -%i/(2*k), so a right answer is 0. */
+
+(residue_error(i) := block([e: 0],
+   for j thru 30 do
+     e: e + residue(1/(z^2 + (i + j)^2), z, (i + j)*%i) + %i/(2*(i + j)),
+   rectform(e)),
+ residue_error(1));
+0$
+
+(parallel_reset_counters(),
+ [sublist(parallel_makelist(residue_error(i), i, 1, 48),
+          lambda([e], e # 0)),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[[], true]$
+
 /* --- assumptions ---
 
    An assumption made before a parallel region is in force inside it,
