@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Inside a parallel element, the assumption that ABSARG1 makes while it
+  works goes into a scratch context of its own, so another runner no
+  longer answers a question with it.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
