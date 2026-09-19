@@ -258,8 +258,10 @@
                 (svref *w1* (- i 16.)) )
         1 ))))
 
+;; The hash state *H1* and *W1* is bound per call, so that concurrent
+;; calls each hash in a state of their own.
 (defmfun $sha1sum (s &optional (rtype '$string))
-  (let (bytes len)
+  (let (bytes len *h1* *w1*)
     (cond
       ((stringp s)
         (setq bytes (string-to-octets s)) )
@@ -317,8 +319,10 @@
 
 ;; *** SHA256 *************************************************************** ;;
 
+;; The hash state *H2* and *W2* is bound per call, so that concurrent
+;; calls each hash in a state of their own.
 (defmfun $sha256sum (s &optional (rtype '$string))
-  (let (bytes len)
+  (let (bytes len *h2* *w2*)
     (cond
       ((stringp s)
         (setq bytes (string-to-octets s)) )

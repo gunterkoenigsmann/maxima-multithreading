@@ -203,8 +203,10 @@
   (setq *h5* (mapcar #'swap-endian32 *h5*))
   (md5sum-return rtype))
 
+;; The hash state *H5* and *W5* is bound here, also for MD5SUM-STREAM, so
+;; that concurrent calls each hash in a state of their own.
 (defmfun $md5sum (s &optional (rtype '$string))
-  (let (bytes len)
+  (let (bytes len *h5* *w5*)
     (cond
       ((stringp s)
         (setq bytes (string-to-octets s)) )

@@ -252,6 +252,40 @@ true$
  is(parallel_peak_workers() < parallel_cores()));
 true$
 
+/* md5sum(), sha1sum() and sha256sum() (stringproc) keep the hash being
+   computed in special variables (*H5* and *W5*, *H1* and *W1*, *H2* and
+   *W2*).  Each call must bind them: assigned, concurrent calls hashed in one
+   state -- measured, 38 to 48 of 48 parallel elements came back with
+   wrong digests in every run on SBCL and CCL (GitHub issue #89).  The
+   first check needs no threads: the standard test vectors for "abc",
+   and the global state left as it was found. */
+
+(load(stringproc),
+ hash_scratch() :=
+   map(lambda([s], if ?boundp(s) then [?symbol\-value(s)] else []),
+       ['?\*h5\*, '?\*w5\*, '?\*h1\*, '?\*w1\*, '?\*h2\*, '?\*w2\*]),
+ hash_before: hash_scratch(),
+ [md5sum("abc"), sha1sum("abc"), sha256sum("abc"),
+  is(hash_scratch() = hash_before)]);
+["900150983cd24fb0d6963f7d28e17f72",
+ "a9993e364706816aba3e25717850c26c9cd0d89d",
+ "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+ true]$
+
+(hash_items(i) :=
+   block([s: sconcat("message number ", i, " ", smake(40 + mod(i, 90), "x"))],
+     [md5sum(s), sha1sum(s), sha256sum(s)]),
+ hash_ref: makelist(hash_items(i), i, 1, 48),
+ 0);
+0$
+
+(parallel_reset_counters(),
+ [is(parallel_makelist(hash_items(i), i, 1, 48) = hash_ref),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[true, true]$
+
 /* --- thru_parallel and in_parallel ---
 
    The keyword forms, which unlike parallel() refuse a loop they cannot

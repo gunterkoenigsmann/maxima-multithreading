@@ -1,6 +1,9 @@
 Maxima 5.50-post change log
 ===========================
 
+* Bind the hash state of md5sum, sha1sum and sha256sum per call, so
+  concurrent calls no longer return wrong digests.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
