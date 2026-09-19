@@ -46,12 +46,15 @@
 
 ;; (PARSE-STRING S)  --  parse the string as a Maxima expression.
 ;; Do not evaluate the parsed expression.
+;; The stream is bound, not assigned: a global value would be shared by
+;; every thread, and a concurrent call could replace it before MREAD
+;; reads it, so that MREAD would read the other call's string.
 
 (defun parse-string (s) 
   (declare (special *mread-prompt* *parse-string-input-stream*))
-  (setq *parse-string-input-stream* 
-    (make-string-input-stream (ensure-terminator s)))
-  (let ((*mread-prompt* ""))
+  (let ((*parse-string-input-stream*
+          (make-string-input-stream (ensure-terminator s)))
+        (*mread-prompt* ""))
     (third (mread *parse-string-input-stream*)) ))
 
 ;; (ENSURE-TERMINATOR S)  --  always concatenate a dollar sign `$' to the end of S.
