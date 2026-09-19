@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Give every parallel worker its own NN* and DN*, where NUMDEN leaves a
+  numerator and denominator for its caller. Shared, concurrent residue()
+  calls read each other's quotients and returned wrong residues.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker

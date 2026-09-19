@@ -151,6 +151,14 @@
 	 ;; *M (float.lisp) is declared with no value, like the display
 	 ;; three, so it cannot be bound to its own.
 	 *m
+	 ;; NN* and DN* (globals.lisp) have no value either.  NUMDEN leaves a
+	 ;; numerator and a denominator in them for its caller to read, and
+	 ;; defint, limit, factor and ezgcd use them as scratch too, so each
+	 ;; runner needs its own pair.  Shared, residue() read another
+	 ;; element's quotient: measured, 48 parallel elements of 30 residues
+	 ;; each came back wrong in 27 to 42 of the 48, in every run on SBCL
+	 ;; and CCL.
+	 nn* dn*
 	 ;; NIL, not its own value.  *RULE-SYMBOL-POOL* is the free list
 	 ;; GET-RULE-SYMBOL draws from, and its (if pool (pop pool) (intern))
 	 ;; is a check and an act rather than one operation: measured, two
