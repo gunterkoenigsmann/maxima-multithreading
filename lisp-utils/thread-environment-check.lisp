@@ -105,6 +105,18 @@ look right and fix nothing."
       (format stream "~&  linearray is a distinct array of the same size: ~a~%" ok)
       ok)))
 
+(defun check-fresh-genvar (&optional (stream *debug-io*))
+  "GENVAR must start empty.  Bound to the caller's list, a worker would
+hold the caller's genvar symbols, whose value cells rank CRE variables
+and which RAT renumbers: that passes the leak check above and still
+lets threads rewrite each other's ranks."
+  (let ((genvar (list (gensym) (gensym)))
+        (inner :unset))
+    (with-thread-local-environment (setq inner genvar))
+    (let ((ok (null inner)))
+      (format stream "~&  genvar starts empty: ~a~%" ok)
+      ok)))
+
 (defun check-fresh-lambda-cache (&optional (stream *debug-io*))
   "*LAMBDA-EXPR-FUNS* and its random state must be fresh objects too.
 Binding them to the caller's would pass the leak check above and still
@@ -222,12 +234,14 @@ leave every thread writing one hash table, which is the whole problem."
   (let* ((leaked (check-bindings stream))
          (fresh (check-fresh-linearray stream))
          (cache (check-fresh-lambda-cache stream))
+         (genvar (check-fresh-genvar stream))
          (raced (check-race stream))
          (props (check-depended-on-properties stream))
          (pool (zerop (check-rule-symbol-pool :stream stream)))
          ;; RACED is NIL only for a race that actually failed: a lisp
          ;; without threads reports :SKIPPED, which is not a failure.
-         (ok (and (null leaked) fresh cache (not (null raced)) props pool)))
+         (ok (and (null leaked) fresh cache genvar (not (null raced)) props
+                  pool)))
     (format stream "~&thread-environment-check: ~:[FAILED~;ok~]~%" ok)
     ok))
 
