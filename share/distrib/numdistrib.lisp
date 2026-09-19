@@ -21,6 +21,19 @@
 ;; to contact me at
 ;; mario @@@ edu DOT xunta DOT es
 
+;; The random variate generators below keep the constants they computed
+;; for their last parameters in special variables, so that repeated draws
+;; with the same parameters skip the setup.  In a parallel element each
+;; call binds a fresh set instead: shared, a thread could draw with the
+;; constants another thread had just computed for other parameters.
+;; Serial calls keep the shared cache, so their numbers are unchanged.
+(defmacro with-private-generator-state (bindings &body body)
+  (let ((f (gensym "GENERATOR-BODY")))
+    `(flet ((,f () ,@body))
+       (if *parallel-evaluation-p*
+           (let ,bindings (,f))
+           (,f)))))
+
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -498,6 +511,8 @@
 (defvar *rnormal-iset* 0)   ;; this flag indicates whether there is a second random variate
 (defvar *rnormal-gset*)     ;; stores the second random variate, if any
 (defun rndnormal-box ()
+  (with-private-generator-state
+      ((*rnormal-iset* 0) (*rnormal-gset* nil))
   (let (v1 v2 rsq fac)
     (cond ((= *rnormal-iset* 0)
               (loop (setf v1 (- (* 2.0 ($random 1.0)) 1.0))
@@ -509,7 +524,7 @@
               (setf *rnormal-iset* 1)
               (* v2 fac))
           (t (setf *rnormal-iset* 0)
-              *rnormal-gset*))))
+              *rnormal-gset*)))))
 
 
 ;;  The sample size ss must be a non negative integer.
@@ -801,6 +816,9 @@
 
 (defun rndbeta-cheng0 (aa bb )
   (declare (type flonum aa bb))
+  (with-private-generator-state
+      ((*rbeta-olda* -1.0) (*rbeta-oldb* -1.0) *rbeta-alpha* *rbeta-beta*
+       *rbeta-gamma* *rbeta-delta* *rbeta-k1* *rbeta-k2* *rbeta-a* *rbeta-b*)
   (let (qsame u1 u2 v w z tt r s y genbet
         (expmax 7.0) (infnty 1.0e304))
         (declare (type flonum expmax infnty))
@@ -913,7 +931,7 @@
                  (setf genbet (/ w (+ *rbeta-b* w)))))
 
            s230)
-        genbet))
+        genbet)))
 
 (defun rndbeta-cheng (aa bb )
   (let (genbet)
@@ -978,6 +996,11 @@
 (defun rndbinomial-kachit (n pp)
   (declare (type integer n)
            (type flonum pp))
+  (with-private-generator-state
+      ((*rbin-psave* -1.0) (*rbin-nsave* -1) *rbin-m* *rbin-xnp* *rbin-p*
+       *rbin-q* *rbin-ffm* *rbin-xnpq* *rbin-fm* *rbin-xm* *rbin-xl* *rbin-xr*
+       *rbin-c* *rbin-al* *rbin-xll* *rbin-xlr* *rbin-p1* *rbin-p2* *rbin-p3*
+       *rbin-p4* *rbin-qn* *rbin-r* *rbin-g*)
   (let (u v x f amaxp ynorm alv x1 f1 z w z2 x2 f2 w2 ix k t1 mp ix1)
    (tagbody
       (if (/= pp *rbin-psave*) (go s10))
@@ -1134,7 +1157,7 @@
       s170)
    (if (> *rbin-psave* 0.5)
        (- n ix)
-       ix)))
+       ix))))
 
 
 ;;  The sample size ss must be a non negative integer.
@@ -1196,6 +1219,11 @@
    (if (= mu 0.0)
      (return-from rndpoisson-ahrens 0))
 
+   (with-private-generator-state
+       ((*rpos-muold* 0.0) (*rpos-muprev* 0.0) *rpos-s* *rpos-l* *rpos-d*
+        *rpos-p0* *rpos-omega* *rpos-b1* *rpos-b2* *rpos-c* *rpos-c0*
+        *rpos-c1* *rpos-c2* *rpos-c3* *rpos-m* *rpos-p* *rpos-q*
+        (*rpos-pp* (make-array 35 :initial-element 0.0 :element-type 'flonum)))
    (let ( ignpoi j kflag del difmuk e fk fx fy g px py tt u v x xx
           (a0 -0.5) (a1 0.3333333) (a2 -0.2500068) (a3 0.2000118)
           (a4 -0.1661269) (a5 0.1421878) (a6 -0.1384794) (a7 0.125006)
@@ -1366,7 +1394,7 @@
           (go s130)
 
           s200 )
-       ignpoi))
+       ignpoi)))
 
 
 ;;  The sample size ss must be a non negative integer.
@@ -1486,6 +1514,11 @@
 (defvar *rhyp-p3*)
 (defun rndhypergeo-kachit (nn1 nn2 kk)
    (declare (type integer nn1 nn2 kk))
+   (with-private-generator-state
+       ((*rhyp-n1s* -1) (*rhyp-n2s* -1) (*rhyp-ks* -1) *rhyp-k* *rhyp-n1*
+        *rhyp-n2* *rhyp-m* *rhyp-minjx* *rhyp-maxjx* *rhyp-tn* *rhyp-a*
+        *rhyp-d* *rhyp-s* *rhyp-w* *rhyp-xl* *rhyp-xr* *rhyp-kl* *rhyp-kr*
+        *rhyp-lamdl* *rhyp-lamdr* *rhyp-p1* *rhyp-p2* *rhyp-p3*)
    (let (ix reject setup1 setup2 e f g p r tt u v y de dg dr ds dt gl
          gu nk nm ub xk xm xn y1 ym yn yk alv
          (con 57.56462733) (deltal 0.0078) (deltau 0.0034) (scale 1.e25))
@@ -1676,7 +1709,7 @@
                        (t (- nn1 ix))))
              (t  (cond ((> nn1 nn2) 
                           (- kk ix))
-                       (t ix))))))
+                       (t ix)))))))
 
 
 ;;  The sample size ss must be a non negative integer.

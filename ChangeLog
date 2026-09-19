@@ -1,6 +1,11 @@
 Maxima 5.50-post change log
 ===========================
 
+* Give each call of distrib's binomial, Poisson, beta, hypergeometric and
+  normal generators its own constants while it runs as a parallel
+  element, so parallel draws follow the requested distributions. Serial
+  draws are unchanged.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker

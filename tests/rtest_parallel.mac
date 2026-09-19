@@ -298,6 +298,63 @@ true$
  is(parallel_peak_workers() < parallel_cores()));
 true$
 
+/* distrib's random variate generators keep the constants of their last
+   parameters in special variables.  Inside a parallel element each call
+   binds its own set; shared, threads drew with each other's constants --
+   measured on SBCL, the means of 48 parallel elements of 100 binomial
+   draws each were off by more than 5 standard errors in 35 of them,
+   random_poisson() and random_beta() failed with errors, and on CCL the
+   run hung (GitHub issue #93).
+
+   Serial draws keep the shared cache and must be exactly as before. */
+(load(distrib), 0);
+0$
+
+block([state: make_random_state(false), r],
+  set_random_state(make_random_state(2026)),
+  r: [random_poisson(4.5, 6), random_binomial(30, 0.3, 6),
+      random_hypergeometric(20, 30, 15, 6), random_poisson(60, 4),
+      random_binomial(200, 0.45, 4)],
+  set_random_state(state),
+  r);
+[[2, 6, 1, 7, 1, 1], [9, 8, 13, 6, 8, 7], [7, 4, 7, 3, 8, 8],
+ [59, 72, 59, 59], [95, 88, 87, 92]]$
+
+/* Without threads: while an element is being evaluated in parallel, the
+   generators leave the shared cache as they found it. */
+(dist_cache() :=
+   map(lambda([s], if ?boundp(s) then [?symbol\-value(s)] else []),
+       ['?\*rbin\-psave\*, '?\*rpos\-muprev\*, '?\*rpos\-muold\*,
+        '?\*rbeta\-olda\*, '?\*rhyp\-n1s\*, '?\*rnormal\-iset\*]),
+ dist_before: dist_cache(),
+ block([?\*parallel\-evaluation\-p\*: true],
+   random_binomial(20, 0.35), random_poisson(7.5), random_poisson(55.5),
+   random_beta(2.5, 3.5), random_hypergeometric(20, 30, 15),
+   random_normal(0, 1)),
+ is(dist_cache() = dist_before));
+true$
+
+/* Each element draws with its own parameters; its sample mean must be
+   within 5 standard errors (a false alarm has probability about 1e-5). */
+(dist_z(i) := block([n: 100, mu: 2 + 3*mod(i, 7), bn: 20 + 7*mod(i, 5),
+                     bp: 0.1 + 0.1*mod(i, 8), a: 1.5 + mod(i, 6),
+                     b: 2.5 + mod(i, 4), sp, sb, sa],
+   sp: apply("+", random_poisson(mu, n)),
+   sb: apply("+", random_binomial(bn, bp, n)),
+   sa: apply("+", random_beta(a, b, n)),
+   map(abs, [(sp/n - mu)/sqrt(mu/n),
+             (sb/n - bn*bp)/sqrt(bn*bp*(1 - bp)/n),
+             (sa/n - a/(a + b))/sqrt(a*b/((a + b)^2*(a + b + 1))/n)])),
+ 0);
+0$
+
+(parallel_reset_counters(),
+ [is(lmax(flatten(parallel_makelist(dist_z(i), i, 1, 48))) < 5),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[true, true]$
+
 /* --- do_parallel ---
 
    The other direction: not one expression over many values, but many
