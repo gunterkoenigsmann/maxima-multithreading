@@ -425,6 +425,82 @@ true$
 
 0$
 
+/* sublis keeps its substitutions in a table of each call's own.  Kept on
+   the property lists of the symbols, which all threads share, concurrent
+   calls substituting for the same symbol lost each other's entries and
+   left the symbol in place: measured on SBCL and CCL, every run of the
+   48 elements below missed substitutions, and parallel eigenvectors()
+   returned eigenvectors still carrying %r1, because every runner
+   substitutes for that same symbol (GitHub issue #79).
+
+   First, the behaviour the table has to keep: substitution is
+   simultaneous, the first equation for a symbol wins, false is a value
+   like any other, function names are replaced, and a substituted lambda
+   is applied. */
+(kill(all), 0);
+
+0$
+
+sublis([a = b, b = a, c = a + b], [a, b, c, f(a, b)]);
+
+[b, a, a + b, f(b, a)]$
+
+sublis([a = 1, a = 2], a);
+
+1$
+
+sublis([a = false], [a, b]);
+
+[false, b]$
+
+sublis([f = g], f(x) + f[1]);
+
+g(x) + g[1]$
+
+sublis([f = lambda([u], u^2)], f(3));
+
+9$
+
+block([sublis_apply_lambda: false],
+  is(sublis([f = lambda([u], u^2)], f(3)) = funmake(lambda([u], u^2), [3])));
+
+true$
+
+ratdisrep(sublis([a = 2], rat(a*x)));
+
+2*x$
+
+errcatch(sublis([1 = 2], x));
+
+[]$
+
+(sublis_residue(k) := block([e: 0],
+   for j thru 200 do e: e + sublis([x = j], x*y^k) - j*y^k,
+   e),
+ 0);
+
+0$
+
+(parallel_reset_counters(),
+ [sublist(parallel_makelist(sublis_residue(k), k, 1, 48),
+          lambda([v], v # 0)),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+
+[[], true]$
+
+/* The serial reference call loads the eigen package first. */
+block([ref: makelist(eigenvectors(matrix([i, 1], [1, 2])), i, 1, 48)],
+  is(parallel_makelist(eigenvectors(matrix([i, 1], [1, 2])), i, 1, 48)
+     = ref));
+
+true$
+
+(kill(all), 0);
+
+0$
+
 /* A parallel loop over a memoizing function must leave its bucket vector
    usable and its values correct.  A vector published before it is filled
    shows up here as a lisp error from an ordinary later call, not as a
