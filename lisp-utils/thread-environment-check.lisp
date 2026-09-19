@@ -49,7 +49,7 @@
     $fpprec fpprec *bigfloatone* *bigfloatzero* *bfhalf* *bfmhalf*
     *bfloat-header* *bfloat-header-prec*
     ;; state belonging to one line of computation
-    tstack *local-signs* $multiplicities $%rnum_list $error $error_syms
+    tstack *local-signs* $multiplicities $%rnum_list $error $error_syms $piece
     $linenum $integration_constant_counter
     ;; output attribution and the question channel
     *standard-output* *error-output* *trace-output*

@@ -37,6 +37,7 @@ binding, and no caller or callee has to change.
 | `WIDTH`, `HEIGHT`, `DEPTH` | `src/displa.lisp` | box dimensions |
 | `VARLIST`, `GENVAR`, `VLIST` | `src/rat3*.lisp` | CRE's variables and their ordering |
 | `TSTACK`, `*LOCAL-SIGNS*`, `$MULTIPLICITIES`, `$%RNUM_LIST`, `$ERROR`, `$ERROR_SYMS`, `$LINENUM`, `$GENSUMNUM`, `$INTEGRATION_CONSTANT_COUNTER` | various | state of one line of computation |
+| `$PIECE` | `src/globals.lisp` | the part the last `part()`/`inpart()` selected; read right afterwards by `trgsmp.mac` and other share packages (issue #66) |
 
 `WITH-THREAD-LOCAL-ENVIRONMENT` (`src/suprv1.lisp`) binds these.
 **Measured** by the groundwork on a `SIGN`-shaped protocol raced between
@@ -364,8 +365,12 @@ runs of 4 match serial, while binding `$RATVARS` (which `nusuml` also sets
 globally) changed nothing. The fix makes them locals of `nusuml`'s `block`
 (issue #66).
 
-The same issue lists `eigenvalues`, `eigenvectors`, `trigsimp` and
-`trigrat` as failing in parallel, with their causes not yet established.
+`trigsimp` failed for a core reason instead: `trgsmp.mac` reads `piece`
+right after `inpart()`, and `$PIECE` was shared. It is now bound per
+thread (sec. 1). **Measured**: 48 parallel `trigsimp()` calls failed in 4
+runs of 4 before, and matched serial in 4 of 4 with the binding. The same
+issue lists `eigenvalues`, `eigenvectors` and `trigrat` as failing in
+parallel, with their causes not yet established.
 
 ## What this adds up to
 
