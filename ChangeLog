@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Fix determinant and invert with sparse: true for matrices with a block
+  of size 3 or more. They returned wrong values, including wrong signs
+  and results containing false, or signalled Lisp errors.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker

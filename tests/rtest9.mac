@@ -244,3 +244,84 @@ string (taylor(sin(x),x,0,4));
 args (taylor(sin(x),x,0,4));
 [x, -x^3/6];
 
+/* determinant with sparse: true splits the matrix into blocks and
+   expands each block of size 3 or more by minors (TDBU in sprdet.lisp).
+   These tests compare it with the Leibniz formula, which shares no code
+   with it, for both entry representations: general expressions without
+   ratmx, canonical rational expressions with it (GitHub issue #62). */
+(kill(leibniz_det, sparse_dets),
+ leibniz_det(m) := block([n: length(m)],
+   lsum(block([s: 1],
+          for i thru n do for j: i + 1 thru n do
+            if p[i] > p[j] then s: -s,
+          s * product(m[i, p[i]], i, 1, n)),
+        p, listify(permutations(makelist(i, i, 1, n))))),
+ sparse_dets(m) := [block([sparse: true], expand(determinant(m))),
+                    block([sparse: true, ratmx: true],
+                      expand(determinant(m)))],
+ 0);
+0;
+
+sparse_dets(matrix([2, 0, 0], [0, 3, 0], [0, 0, 4]));
+[24, 24];
+
+sparse_dets(matrix([1, 2, 3], [4, 5, 6], [7, 8, 10]));
+[-3, -3];
+
+sparse_dets(matrix([2, 1, 0], [1, 3, 1], [0, 1, 4]));
+[18, 18];
+
+/* Pivoting reorders the columns by an odd permutation. */
+sparse_dets(matrix([-9, 0, 8], [-8, 7, 7], [4, 6, 2]));
+[-356, -356];
+
+sparse_dets(matrix([0, 0, 3], [-1, -9, 0], [3, 0, -4]));
+[81, 81];
+
+sparse_dets(matrix([a, b, c], [d, e, f], [g, h, k]));
+[a*e*k - a*f*h - b*d*k + b*f*g + c*d*h - c*e*g,
+ a*e*k - a*f*h - b*d*k + b*f*g + c*d*h - c*e*g];
+
+sparse_dets(matrix([a, b, 0, 0], [0, c, d, 0], [0, 0, e, f], [g, 0, 0, h]));
+[a*c*e*h - b*d*f*g, a*c*e*h - b*d*f*g];
+
+sparse_dets(matrix([1, 2, 3], [4, 5, 6], [7, 8, 9]));
+[0, 0];
+
+sparse_dets(matrix([1, 0, 3, 4], [2, 0, 5, 6], [7, 0, 8, 9], [1, 0, 2, 3]));
+[0, 0];
+
+block([m: genmatrix(lambda([i, j], if abs(i - j) <= 1 then i + j else 0),
+                    6, 6)],
+  sparse_dets(m) - leibniz_det(m) * [1, 1]);
+[0, 0];
+
+/* Random integer and symbolic matrices, about 60 % of the entries
+   nonzero; the caller's random state is restored afterwards. */
+block([state: make_random_state(false), wrong: []],
+  set_random_state(make_random_state(62)),
+  for n: 3 thru 5 do for k thru 20 do
+    block([m: genmatrix(lambda([i, j],
+                          if random(5) < 3 then random(19) - 9 else 0),
+                        n, n)],
+      if sparse_dets(m) # expand(leibniz_det(m)) * [1, 1] then
+        wrong: cons(m, wrong)),
+  for n: 3 thru 4 do for k thru 10 do
+    block([m: genmatrix(lambda([i, j],
+                          if random(5) < 3 then concat(x, i, j) else 0),
+                        n, n)],
+      if sparse_dets(m) # expand(leibniz_det(m)) * [1, 1] then
+        wrong: cons(m, wrong)),
+  set_random_state(state),
+  wrong);
+[];
+
+/* invert with sparse builds its cofactors with the same routine; for
+   a 4 x 4 matrix they are determinants of 3 x 3 blocks. */
+block([m: matrix([2, 1, 0, 0], [1, 3, 1, 0], [0, 1, 4, 1], [1, 0, 1, 5])],
+  [84 * block([sparse: true], invert(m)),
+   84 * block([sparse: true, ratmx: true], invert(m))]);
+[matrix([52, -19, 5, -1], [-20, 38, -10, 2], [8, -11, 25, -5],
+        [-12, 6, -6, 18]),
+ matrix([52, -19, 5, -1], [-20, 38, -10, 2], [8, -11, 25, -5],
+        [-12, 6, -6, 18])];
