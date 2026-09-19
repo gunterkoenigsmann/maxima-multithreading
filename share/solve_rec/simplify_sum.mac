@@ -144,7 +144,10 @@ simplify_sum(expr) :=
      sm1 : expr,
      linsolvewarn:false,
      simplify_sum_depth:simplify_sum_depth+1,
-     ss_new_context: concat('ss_context, simplify_sum_depth)],
+     /* A context named per call, never by depth alone: calls running
+        at the same time, or a user context of the same name, would
+        otherwise share it or be killed by it. */
+     ss_new_context: gensym("ss_context")],
 
     /*** Prevent possible infinite recursion. ***************************/
     if simplify_sum_depth>simplify_sum_max_depth then return(expr),
@@ -156,10 +159,11 @@ simplify_sum(expr) :=
       killcontext(ss_new_context),
  
     supcontext (ss_new_context),
-    if lo#minf and lo#-inf then assume(var>=lo),
-    if hi#inf then assume(var<=hi),
-    summand : simplify_sum(summand),
-    killcontext(ss_new_context),
+    unwind_protect(
+      (if lo#minf and lo#-inf then assume(var>=lo),
+       if hi#inf then assume(var<=hi),
+       summand : simplify_sum(summand)),
+      killcontext(ss_new_context)),
     expr : intosum(apply(sum, [summand, var, lo, hi])),
     
     /*** Default maxima simplification. *********************************/
@@ -249,7 +253,7 @@ simplify_sum(expr) :=
     /*** Try converting the sum to finite sum of psi functions **********/
     if use_ratfun and not(atom(sm1)) and not( freeof_sum(sm1) ) and ?ratp(summand, var)
     then block(
-      [ratfun, expr1: expr],
+      [ratfun, expr1: expr, polypart],
       ss_print_message(1, "Trying ratfun -> psi ..."),
       ratfun : part(expr1, 1),
       if hi=inf and hipow(num(ratfun), var) > hipow(denom(ratfun), var)-2 then
@@ -283,7 +287,7 @@ simplify_sum(expr) :=
     /*** Zeilberger algorithm ************************************************/
     if errcatch(
       if use_zeilberger and not(atom(sm1)) and not freeof_sum(sm1) then block(
-        [summand:summand, var:var, lo:lo, hi:hi, nv: gensym(), supp],
+        [summand:summand, var:var, lo:lo, hi:hi, nv: gensym(), support],
         ss_print_message(1, "Trying with Zeilberger ..."),
         assume(var>lo), assume(var<hi),
         support : ss_support(summand, var),
@@ -545,20 +549,21 @@ ss_zeilb_init(expr, %n%, lo, hi, sum_min, deg) := block(
  *******************/
 
 summand_to_rec(expr, k, n) := block(
-  [zr, linsolvewarn:false, lo:minf, hi:inf],
+  [zr, linsolvewarn:false, lo:minf, hi:inf,
+   ss_zb_context: gensym("ss_context")],
   
   if listp(k) then (
     lo : k[2],
     hi : k[3],
     k : k[1]),
 
-  supcontext('ss_context),
+  supcontext(ss_zb_context),
 
   if errcatch(
     zr : ss_zeilb(expr, k, lo, hi, n)
   ) = [] then zr : 'failed,
 
-  killcontext('ss_context),
+  killcontext(ss_zb_context),
 
   zr)$
 
@@ -572,7 +577,7 @@ check_sum(expr, %k%, %n%, lo, hi, deg, sm) :=
   if not zeilberger_check then true
   else catch(
     block(
-      [%i%, tmp_sum, real_sum, simpsum:true, sum_min:sum_min+deg],
+      [%i%, tmp_sum, real_sum, dif, simpsum:true, sum_min:sum_min+deg],
       for %i%:sum_min thru deg+sum_min do(
         
         real_sum : minfactorial(factcomb(makefact(
@@ -746,7 +751,7 @@ factor_with_solve(expr, n) := block(
  *******************/
 
 to_hypergeometric(expr, var, lo, hi) := block(
-  [quo, upper, lower, a:[], b:[], x, c, warnings:false],
+  [quo, upper, lower, a:[], b:[], x, c, warnings:false, ni_coeffs],
 
   for i:1 thru 100 while subst(var=lo, expr)=0 do lo : lo+1,
   expr:subst(var=var+lo, expr),
@@ -779,7 +784,8 @@ to_hypergeometric(expr, var, lo, hi) := block(
 
 
 to_hypergeometric1(expr, var, lo, hi) := block(
-  [quo, upper, lower, a:[], b:[], x, c, warnings:false, besselexpand:true],
+  [quo, upper, lower, a:[], b:[], x, c, warnings:false, besselexpand:true,
+   quolim],
 
   for i:1 thru 100 while subst(var=lo, expr)=0 do lo : lo+1,
 /*  expr:subst(var=var+lo, expr),*/
@@ -934,9 +940,9 @@ sum_by_integral(expr, var, lo, hi) :=
       expr,
       bottomup))=true then
   block(
-    [expr1, x_:?gensym()],
+    [expr1, x_:?gensym(), sbi_context: gensym("sum_by_integral")],
     
-    supcontext (concat('sum_by_integral, simplify_sum_depth)),
+    supcontext (sbi_context),
     assume(x_>0, x_<1, var>=lo, var<=hi),
 
     expr1 : opsubst(harmonic_number=lambda([u], (1-x_^u)/(1-x_)), expr),
@@ -944,7 +950,7 @@ sum_by_integral(expr, var, lo, hi) :=
       expr1 : simplify_sum(split_sum(expand(apply('sum, [expr1, var, lo, hi]))))
       ) = [] then expr1 : false,
 
-    killcontext(concat('sum_by_integral, simplify_sum_depth)),
+    killcontext(sbi_context),
 
     for tr in sum_by_integral_transforms do (
       expr1 : apply(tr, [expr1])),

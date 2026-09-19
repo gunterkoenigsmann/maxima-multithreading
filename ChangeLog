@@ -1,6 +1,11 @@
 Maxima 5.50-post change log
 ===========================
 
+* Give each simplify_sum call its own working variables and its own
+  assumption contexts. Concurrent sums no longer corrupt each other, and a
+  user context named like simplify_sum's old scratch contexts is no longer
+  killed.
+
 * Keep lsquares_estimates' exact solutions in a local, so concurrent fits
   no longer lose each other's exact result and fall back to approximations.
 
