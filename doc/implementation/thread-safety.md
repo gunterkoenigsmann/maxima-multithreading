@@ -293,6 +293,18 @@ and friends) and in the sparse determinant (`src/sprdet.lisp`,
 serial `determinant` under `sparse:true` still assigns the global `*ROW*`
 and `*COL*`, because `SPRDET` reaches `TMLATTICE` in `src/linnew.lisp`.
 
+The same shape occurs without a symbol handed around. `$ALLROOTS` and
+`$BFALLROOTS` (`src/cpoly.lisp`) `SETQ` ten work arrays declared only by
+a `DECLARE-TOP` (`*PR-SL*`, `*PI-SL*`, `*SHR-SL*`, ...), fill them in
+`CPOLY-SL`/`RPOLY-SL`, and read the roots back out of them. **Measured**
+on SBCL, 48 parallel calls per run: 14 to 21 errors, plus 7 to 18 results
+that differed from serial **without an error**. Some were partial
+factorizations with complex coefficients for a real polynomial; others
+were roots whose residual reached 223475. The scalars of the same files
+were already bound: after calls exercising the real, complex, bigfloat
+and `polyfactor` paths, only the ten arrays had global values. Each call
+now binds them (issue #65).
+
 ## 12. State in closures over a top-level LET
 
 ```lisp
