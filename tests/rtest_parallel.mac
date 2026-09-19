@@ -112,6 +112,21 @@ true$
 (kill(all), 0);
 0$
 
+/* limit assumes its variable is beyond every number while it works, and
+   the elements here use the same variable: one runner's assumption is
+   already there when the next one asks, so that one adds none of its own
+   and loses the fact when the first runner forgets it.  The scratch
+   contexts must be gone afterwards, and no fact may be left behind. */
+
+block([ref: [limit(signum(x), x, minf), limit(atan2(exp(x), x), x, minf),
+             limit(unit_step(x), x, minf)],
+       c0: contexts, r],
+  r: parallel_makelist([limit(signum(x), x, minf),
+                        limit(atan2(exp(x), x), x, minf),
+                        limit(unit_step(x), x, minf)], i, 1, 16),
+  [ref, is(r = makelist(ref, i, 1, 16)), is(contexts = c0), facts()]);
+[[-1, %pi, 0], true, true, []]$
+
 is(parallel_makelist(factor(i! + 1), i, 1, 10)
    = makelist(factor(i! + 1), i, 1, 10));
 true$
