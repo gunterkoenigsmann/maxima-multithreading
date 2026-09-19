@@ -798,6 +798,19 @@ pnz;
 [true, true, true, true, true];
 
 
+/* is(equal(...)) guards against unbounded recursion through trisplit.
+   The same call in another thread is not a recursion of its own, and a
+   parallel region must not leave anything behind that changes a later
+   answer (GitHub issue #100). */
+
+block([ok: true],
+  for k thru 5 do
+    ok: ok and is(parallel_makelist([is(equal(abs(1 + %i*z), z - %i)),
+                                     is(notequal(%i*exp(x), 0))], i, 1, 16)
+                  = makelist([false, true], i, 1, 16)),
+  [ok, is(equal(abs(1 + %i*z), z - %i)), is(notequal(%i*exp(x), 0))]);
+[true, false, true]$
+
 /**************************************/
 /* Leave this at the end of the file! */
 /**************************************/

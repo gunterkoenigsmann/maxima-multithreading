@@ -25,15 +25,23 @@
                      Known args ~S contain ~S as a subtree"
              (ur-name err) (ur-existing err) (ur-arg err)))))
 
+;;; The calls in progress, as an alist from the name of a call site to the
+;;; arguments of the calls through it, innermost first.  It is bound, never
+;;; assigned, so the record belongs to one thread's call stack: a call at the
+;;; same site in another thread is not a recursion, and unwinding restores
+;;; the record exactly.  A new thread, a parallel worker included, starts
+;;; with none.
+(defvar *current-recursion-args* nil)
+
 ;;; CALL-WITH-SAFE-RECURSION
 ;;;
-;;; Call (FUNCALL THUNK), but record the call on the plist of NAME. FUN may
-;;; recurse through this call site again, but only if the new argument isn't a
-;;; cons containing ARG as a subtree.
+;;; Call (FUNCALL THUNK), but record the call in *CURRENT-RECURSION-ARGS*
+;;; under NAME. FUN may recurse through this call site again, but only if the
+;;; new argument isn't a cons containing ARG as a subtree.
 ;;;
 ;;; If a recursion is spotted, raise an UNSAFE-RECURSION error.
 (defun call-with-safe-recursion (name arg thunk)
-  (let ((known-args (get name 'current-recursion-args)))
+  (let ((known-args (cdr (assoc name *current-recursion-args*))))
     (when (find-if (lambda (known)
                      (if (consp known)
                          (appears-in arg known)
@@ -41,13 +49,9 @@
                    known-args)
       (error 'unsafe-recursion :name name :existing known-args :arg arg))
 
-    (unwind-protect
-         (progn
-           (setf (get name 'current-recursion-args)
-                 (cons arg known-args))
-           (funcall thunk))
-      (setf (get name 'current-recursion-args)
-            (remove arg known-args)))))
+    (let ((*current-recursion-args*
+            (acons name (cons arg known-args) *current-recursion-args*)))
+      (funcall thunk))))
 
 (defmacro with-safe-recursion (name arg &body body)
   `(call-with-safe-recursion ',name ,arg (lambda () ,@body)))
