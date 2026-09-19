@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Start every parallel worker with CRE variable symbols of its own. Workers
+  used to share the caller's, whose ranks rat() renumbers, so concurrent
+  rat() and trigrat() calls could mix up variables between elements.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
