@@ -1377,8 +1377,10 @@
 	(list *p*)
 	(factor72 *p*))))
 
+;; *PRIME is the prime FACT5 chooses and Z1 lifts modulo, set and read
+;; further down; FACTOR72 binds it so that each factorization has its own.
 (defun factor72 (*p*)
-  (let ((sharpcont 1) plim)
+  (let ((sharpcont 1) plim *prime)
     (setq *p* (cond ((onevarp *p*)
 		   (mapcar #'posize (fact5 *p*)))
 		  (t
