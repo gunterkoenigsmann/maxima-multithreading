@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Give each xthru call its own numerator and denominator scratch, so
+  concurrent calls no longer combine each other's factors into wrong
+  results.
+
 * Bind piece, the part the last part() or inpart() selected, per parallel
   runner, so trigsimp and other share code reading it right after a part()
   call see their own selection.
