@@ -101,7 +101,17 @@ algebraic_gcd(a,b) :=
  * integration is var.
  */
 int_rational_log_part(a, d, var) :=
-  block([resultant : subres, c, t, r, rr, s : 0],
+  /* t names the root the sum runs over.  tellrat and untellrat work on
+   * that symbol and on tellratlist, neither of which this block's binding
+   * of t makes private, and both are shared by every thread: with the
+   * literal t, a concurrent call untold the relation another one was about
+   * to use, its algebraic_gcd came back as 1, and the summand became
+   * log(1) = 0.  The symbol is therefore this call's own, tellratlist is
+   * bound here so that telling and untelling stay in this call, and the
+   * symbol is named back to t in the answer.
+   */
+  block([resultant : subres, c, t : ?gensym(), r, rr, s : 0,
+         tellratlist : tellratlist],
     r : resultant(d, a - t*diff(d,var), var),
     r : sqfr(r),
     /* Can this be done better?  Say we have -c*R1(x)*R2(x)....  We
@@ -127,7 +137,7 @@ carefully. */
         untellrat(t),
         g : log(g),
             s : s + apply('lsum, [t*g/c, t, rootsof(rr, t)]))),
-      s);
+      if var = 't then s else subst(t = 't, s));
 
 
 /* Integrate a rational function f */

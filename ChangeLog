@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* int_rational_function() tells its algebraic relation about a symbol of
+  its own, so concurrent calls no longer take the relation from each
+  other and return zero instead of the integral.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker

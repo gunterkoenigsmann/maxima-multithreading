@@ -311,6 +311,7 @@
      #+(or sbcl ccl cmucl ecl gcl clisp)
      ((mlist simp) 4 9 10 13 16 20 21 24 25))
      "rtest_antid"
+     "rtest_hermite_reduce"
      "rtest_bffac"
      "rtest_diff_form"
      "rtest_grobner"
