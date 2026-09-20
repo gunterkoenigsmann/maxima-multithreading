@@ -298,7 +298,7 @@ bfzeta_borwein (s, fpp) := block (
   n: bfzeta_borwein_terms_needed (s, t, fpp+1),
   /* b is the binomial coefficient; d is dk */
   block ([fpprec: ceiling (log (n) + fpp), acc: [0,0],
-          b: 4^n/2, d: 0, lbk],
+          b: 4^n/2, d: 0, tlbk],
     for k:n step -1 thru 1 do (
       tlbk: -t * log (bfloat (k)),
       d: d + b,

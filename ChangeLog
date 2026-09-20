@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* bfzeta() declares the loop temporary its Borwein summation writes, so
+  concurrent calls with a complex argument no longer pick up each
+  other's values.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
