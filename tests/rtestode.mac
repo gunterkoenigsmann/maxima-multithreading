@@ -348,3 +348,22 @@ modifiedbessel;
 
 (kill(all),remove(n,integer));
 done;
+/* ode1a works through %q%, %f% and %g%.  Concurrent runners sharing them
+   returned each other's intermediate results: the equation below came back
+   as the solution of 'diff(y,x) = (y/x)^2, without the 2*y/x term
+   (GitHub issue #111). */
+
+(kill(all), ode2('diff(y,x) = (y/x)^2 + 2*(y/x), y, x));
+-((x*y+x^2)/y) = %c;
+
+block([ref: ode2('diff(y,x) = (y/x)^2 + 2*(y/x), y, x), bad: 0],
+  for k thru 5 do
+    bad: bad + length(sublist(parallel_makelist(
+                                ode2('diff(y,x) = (y/x)^2 + 2*(y/x), y, x),
+                                i, 1, 8),
+                              lambda([r], r # ref))),
+  bad);
+0;
+
+(kill(all), 0);
+0;
