@@ -123,7 +123,7 @@
                       (flet ((franz.concat (&rest args)
                                  "equivalent to Franz Lisp 'concat'."
                                  (values (intern
-                                          (format nil "~{~A~}" args)))))
+                                          (format nil "~{~A~}" args) :maxima))))
                         (franz.concat '$ (car varetdegre)))))))))
 
 (defun chvaretdegre (listofvar)
@@ -137,7 +137,7 @@
         (i 1))
      (cons (flet ((franz.ascii (charcode)
                      "equivalent to Franz Lisp 'ascii'."
-                     (intern (string (code-char charcode)))))
+                     (intern (string (code-char charcode)) :maxima)))
             (franz.ascii (car hj)))
           (apply '+
                  (mapcar #'(lambda (nbascii)

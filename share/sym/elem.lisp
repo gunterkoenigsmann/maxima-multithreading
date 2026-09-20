@@ -167,7 +167,7 @@
       (rangei2 (cons (flet ((franz.concat (&rest args)
                                 "equivalent to Franz Lisp 'concat'."
                                 (values (intern
-                                         (format nil "~{~A~}" args)))))
+                                         (format nil "~{~A~}" args) :maxima))))
                        (franz.concat '$e i))
                      lesei)
                (1+ i)
