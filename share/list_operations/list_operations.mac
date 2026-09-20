@@ -10,7 +10,8 @@ ranks (L, [optional]) :=
 
 ranks1 (L, P, ties_method) :=
     block ([order: ordering (L, P),
-            eq: buildq ([P], lambda ([a, b], not P(a, b) and not P(b, a)))],
+            eq: buildq ([P], lambda ([a, b], not P(a, b) and not P(b, a))),
+            %ranks],
            %ranks: perm_inverse (order),
            if ties_method # 'distinct_ranks
                then block ([sorted: permute (order, L), runs],
