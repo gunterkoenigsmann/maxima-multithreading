@@ -198,7 +198,7 @@ IRR (Internal Rate of Return), is the value of rate which makes Net Present Valu
 zero.
 */
 irr(flowValues,I0):=
-block([r,sum, realonly: true],
+block([r,sum,result, realonly: true],
 	sum:npv(r,flowValues)-I0,
 	result:float(algsys([sum=0],[r])),
 	result
