@@ -62,3 +62,26 @@ block([q: 7*x^13 + 10*x^8 + 4*x^7 - 7*x^6 - 4*x^3 - 4*x^2 + 3*x +
 /* from comments in share/integration/hermite_reduce.mac */
 int_rational_function((x^4-3*x^2+6)/(x^6-5*x^4+5*x^2+4),x);
 'lsum(t*log(x^3+t*x^2-3*x-2*t)/2,t,rootsof(t^2+1,t))$
+
+/* int_rational_log_part tells maxima an algebraic relation for the root
+   the sum runs over.  With the literal t, that relation is shared by every
+   thread: a concurrent call untold it, the algebraic gcd came back as 1 and
+   the summand became log(1) = 0, so the integral came back as zero --
+   measured 12 of 48 (GitHub issue #123). */
+
+(kill(all), load(hermite_reduce),
+ int_rational_function((x^4-3*x^2+6)/(x^6-5*x^4+5*x^2+4), x));
+'lsum(t*log(x^3+t*x^2-3*x-2*t)/2, t, rootsof(t^2+1, t));
+
+block([ref: int_rational_function((x^4-3*x^2+6)/(x^6-5*x^4+5*x^2+4), x),
+       bad: 0, v],
+  for k thru 4 do
+    (v: parallel_makelist(int_rational_function((x^4-3*x^2+6)/(x^6-5*x^4+5*x^2+4), x),
+                          %zz, 1, 8),
+     bad: bad + length(sublist(makelist(is(v[j] = ref), j, 1, 8),
+                               lambda([q], q # true)))),
+  bad);
+0;
+
+(kill(all), 0);
+0;
