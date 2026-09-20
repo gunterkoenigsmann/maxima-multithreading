@@ -21,6 +21,11 @@
 (macsyma-module lecteur)
 
 (progn (defvar d) (defvar lvar))
+
+; EXPOMON collects the exponents of one monomial on the property list of
+; this symbol.  EXPOSANTS binds it to a symbol of its own, so that two
+; readers running at the same time keep their monomials apart.
+(defvar *var-expo* 'var_expo)
 ;---------------------------------------------------------------------------
 ;               LE LECTEUR DANS  k[y1, ... ,yn][x1, ... ,xp]
 ;                rendant la forme distribuee du polynome pol
@@ -59,8 +64,9 @@
               (somme_coef2 c2 m2 (cdr pol_dist))))))))
 
 (defun exposants (pol lvar)
-  (if (and (listp pol) (equal 'mplus (caar pol)))
-      (mapcar 'expomon (cdr pol)) (list (expomon pol))))
+  (let ((*var-expo* (make-symbol "var_expo")))
+    (if (and (listp pol) (equal 'mplus (caar pol)))
+        (mapcar 'expomon (cdr pol)) (list (expomon pol)))))
 ;---------------------------------------------------------------------------
 ; lecture d'un mono^me :
 ; Soit un mono^me dans k[x1,...,xn] ou` k est e'ventuellement un anneau
@@ -85,13 +91,13 @@
 		    (member (cadr mon) lvar :test #'equal)))
 	   ;; le coefficient, eventuellement rationnel, est different de 1
 	   (mapc 'lvarexpo (cddr mon))
-	   (setf (get 'var_expo 'coe) (cadr mon)))
+	   (setf (get *var-expo* 'coe) (cadr mon)))
 	  (t
 	   ;; le coefficient est e'gal a 1
 	   (mapc 'lvarexpo (cdr mon)) 
-	   (setf (get 'var_expo 'coe) 1))))
+	   (setf (get *var-expo* 'coe) 1))))
        ;; on a ((mexpt) x 4) ou x:
-       (t (lvarexpo mon) (setf (get 'var_expo 'coe) 1)))
+       (t (lvarexpo mon) (setf (get *var-expo* 'coe) 1)))
      ;; maintenant toutes les donnees sont dans la plist
      ;; reste a bien recoller les morceaux
      (let ((ncoe (cadr (flet ((franz.remprop
@@ -104,12 +110,12 @@
                                            (list indic))))))
 				"equivalent to Franz Lisp 'remprop'."
 				(remprop sym indic) result))
-                         (franz.remprop 'var_expo 'coe))))
+                         (franz.remprop *var-expo* 'coe))))
 	   (exposant (expomon2 lvar)))
        ;; on n'a retire que les exposants des xi et le coefficient
        ;; numerique de la plist, reste les yi et leur exposants
        ;; a remettre en coefficients.
-       (cons (recupcoef (symbol-plist 'var_expo) ncoe) exposant)))))
+       (cons (recupcoef (symbol-plist *var-expo*) ncoe) exposant)))))
 
 (defun recupcoef (plist coef)
   (if (null plist) coef
@@ -126,7 +132,7 @@
                                          (symbol-plist sym) (list indic))))))
                                     "equivalent to Franz Lisp 'remprop'."
                                     (remprop sym indic) result))
-                           (franz.remprop 'var_expo yi))))
+                           (franz.remprop *var-expo* yi))))
                 coef)))))
 
 ; Representation MACSYMA, mmon, de x**i : 
@@ -136,8 +142,8 @@
 ; dans la plist var_expo.
 
 (defun lvarexpo (mmon)
-  (if (atom mmon) (setf (get 'var_expo mmon) 1)
-      (setf (get 'var_expo (cadr mmon)) (caddr mmon))))
+  (if (atom mmon) (setf (get *var-expo* mmon) 1)
+      (setf (get *var-expo* (cadr mmon)) (caddr mmon))))
 ; recuperation de la liste des exposants associee aux variables de lvar :
 
 (defun expomon2 (lvar)
@@ -152,7 +158,7 @@
                                             (list indic))))))
                             "equivalent to Franz Lisp 'remprop'."
                             (remprop sym indic) result))
-                   (franz.remprop 'var_expo var)))))
+                   (franz.remprop *var-expo* var)))))
           lvar))
 
 (defun chercheexpo (expo) (if (null expo) 0 (car expo)))

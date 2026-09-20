@@ -54,8 +54,10 @@
 ;--------------------------------------------------------------------------
 
 (defun $multi_pui_init ($multi_lpui $multi_pc $llvar)
-  (multi_pui  (cdr $multi_lpui) $multi_pc
-                      (cdr $llvar)))
+  ; P_RED2, reached through MULTI_PUI, assigns LISTPI.
+  (let ((listpi (and (boundp 'listpi) listpi)))
+    (multi_pui  (cdr $multi_lpui) $multi_pc
+                        (cdr $llvar))))
 ;cf. p_red1
 (defun multi_pui (multi_lpui $multi_pc l$lvar)
   (cond
@@ -93,13 +95,9 @@
 ; sym = (REP([pol])(2) + longueurs) retirer les "mlist"
 ; sym = REP([pol])(2)
 (defun $pui_init (valpi sym $lvar)
-  (let ((sauvlistpi
-            (cdr (flet ((franz.boundp (name)
-                            "equivalent to Franz Lisp 'boundp'."
-                            (and (boundp name)
-                                 (cons nil (symbol-value name)))))
-                   (franz.boundp 'listpi)))))
-    (prog1 (case $pui
+  ; P_RED2 assigns LISTPI; bind it so that runners keep their own.
+  (let ((listpi (and (boundp 'listpi) listpi)))
+    (case $pui
              (1
               (if (meval (list '($is) (list '(mequal) sym 0))) 0
                   (p_red1  valpi                      
@@ -123,8 +121,7 @@
                 (p_red2 ($degrep pol) pol  valpi)))
              (5 (p_red1  valpi (mapcar 'cdr (cdr sym))))
              (6 (p_red1 valpi (lgparts (mapcar 'cdr (cdr sym)))))
-             (t "erreur $pui n'a pas de valeur"))
-      (setq listpi sauvlistpi))))
+             (t "erreur $pui n'a pas de valeur"))))
 ;**************************************************************************
 
 (defun p_red1 ($l ppart) 
