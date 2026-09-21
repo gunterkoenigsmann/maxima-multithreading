@@ -1,0 +1,152 @@
+# Build and test the open pull requests.
+#
+# WHY THIS EXISTS SEPARATELY, and why it is not `on: push`.  GitHub reads
+# a workflow from the branch being pushed, so real push- or
+# pull_request-triggered CI would need this file committed to every work
+# branch -- which means committed to `multithreading-groundwork`, which
+# is synced to SourceForge.  Maxima's tree upstream has no `.github`
+# directory at all, and adding one there is not ours to do.
+#
+# `schedule` and `workflow_dispatch` are read from the DEFAULT branch
+# instead, which is this one.  So a workflow that lists the open pull
+# requests and tests each of them gives the same coverage -- every branch
+# that anybody proposes -- and leaves the shared branch untouched.
+#
+# What it tests is `refs/pull/N/merge`, the merge of the PR with its
+# base, not the PR's own head: the question before a merge is whether the
+# result builds, and a branch cut weeks ago can be green on its own and
+# broken against today's base.  A conflicting PR has no merge ref, so
+# those are reported as conflicting and skipped rather than tested in a
+# shape nobody will ever merge.
+
+name: pull requests
+
+on:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: One PR number, or blank for every open one
+        required: false
+        default: ''
+      lisps:
+        description: Space-separated lisps to run
+        required: false
+        default: sbcl ccl64
+  schedule:
+    # 05:17 UTC, two hours after the groundwork run in lisps.yml so the
+    # two do not compete for runners.
+    - cron: '17 5 * * *'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  choose:
+    name: choose what to test
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+      count: ${{ steps.pick.outputs.count }}
+    steps:
+      - id: pick
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          ONE_PR: ${{ github.event.inputs.pr }}
+          # A nightly run of every open PR on two lisps is a lot of
+          # runner time for a result nobody reads before breakfast.  The
+          # schedule therefore takes one lisp and the button takes two --
+          # the pre-merge check is the one that has to be thorough, and
+          # that one is dispatched by a person.
+          LISPS: ${{ github.event.inputs.lisps || 'sbcl' }}
+        run: |
+          set -euo pipefail
+          gh pr list --state open --limit 100 \
+             --json number,mergeable,headRefName,title > prs.json
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          prs = json.load(open("prs.json"))
+          one = os.environ.get("ONE_PR", "").strip()
+          if one:
+              prs = [p for p in prs if str(p["number"]) == one]
+          lisps = os.environ["LISPS"].split()
+          include, skipped = [], []
+          for p in prs:
+              # CONFLICTING has no refs/pull/N/merge to check out, and
+              # UNKNOWN means GitHub has not computed it yet -- asking
+              # again on the next run is cheaper than guessing.
+              if p["mergeable"] != "MERGEABLE":
+                  skipped.append((p["number"], p["mergeable"]))
+                  continue
+              for lisp in lisps:
+                  include.append({"pr": p["number"], "lisp": lisp,
+                                  "branch": p["headRefName"]})
+          print("matrix=" + json.dumps({"include": include}))
+          print("count=" + str(len(include)))
+          summary = open(os.environ["GITHUB_STEP_SUMMARY"], "a")
+          summary.write(f"Testing {len(include)} job(s) on: {' '.join(lisps)}\n\n")
+          for pr, why in skipped:
+              summary.write(f"- #{pr} not tested: {why.lower()}\n")
+          PY
+
+  suite:
+    name: "#${{ matrix.pr }} ${{ matrix.lisp }}"
+    needs: choose
+    if: needs.choose.outputs.count != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      # One PR failing says nothing about the next, but a queue of 70
+      # jobs starves everything else in the account.
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.choose.outputs.matrix) }}
+    steps:
+      - name: Check out the merge of #${{ matrix.pr }} with its base
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ matrix.pr }}/merge
+
+      - name: Install build requirements
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends \
+            texinfo autoconf automake make gcc \
+            ${{ matrix.lisp == 'ccl64' && ' ' || matrix.lisp }}
+
+      - name: Fetch Clozure CL
+        if: matrix.lisp == 'ccl64'
+        run: |
+          curl -fsSL -o ccl.tar.gz \
+            https://github.com/Clozure/ccl/releases/download/v1.13/ccl-1.13-linuxx86.tar.gz
+          tar xzf ccl.tar.gz
+          ./ccl/lx86cl64 --version
+
+      - name: Bootstrap and configure
+        run: |
+          sh bootstrap
+          if [ "${{ matrix.lisp }}" = ccl64 ]; then
+            ./configure --enable-ccl64 --with-ccl64=$PWD/ccl/lx86cl64
+          else
+            ./configure --enable-${{ matrix.lisp }}
+          fi
+
+      - name: Build
+        run: |
+          set -o pipefail
+          make 2>&1 | tee build.log
+
+      - name: Test suite
+        run: make check
+
+      - name: Keep the logs when something failed
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: logs-pr${{ matrix.pr }}-${{ matrix.lisp }}
+          path: |
+            build.log
+            config.log
+            tests/*.log
+          if-no-files-found: ignore
