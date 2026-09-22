@@ -75,6 +75,9 @@ Maxima 5.50-post change log
 * The arithmetic-geometric mean iteration behind numerical jacobi_am()
   works in arrays of its own per call, so concurrent calls no longer
   return wrong values or fail to converge.
+* The record of the calls in progress that guards against unbounded
+  recursion belongs to one thread, so is(equal(...)) no longer answers
+  unknown in parallel code, nor serially after it.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
