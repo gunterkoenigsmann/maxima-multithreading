@@ -2,7 +2,7 @@
 
 /* AVEC LES RESULTANTS */
 resolvante_produit_res(p,x):=
-   block([n,rmax,puissances,elementaires,rh,k,rf],
+   block([n,rmax,puissances,elementaires,rh,k,rf,deg],
           n:hipow(p,x),
           rmax : binomial(n,quotient(n,2)),
           rh: makelist(resultant(p,y-x^i,x),i,0,rmax),
@@ -29,7 +29,7 @@ resolvante_produit_res(p,x):=
 /* Les A[k] sont les fonctions puissances des racines de la re'solvante */
 
 resolvante_produit_sym (p,x):=
-    block([n,rmax,krmax,a,aa,resol,pui_depart],
+    block([n,rmax,krmax,a,aa,bin,resol,pui_depart],
        (n:hipow(p,x),
         krmax : if oddp(n) then 1+quotient(n,2) else quotient(n,2),
         a[0]:makelist(binomial(n,r),r,0,n),

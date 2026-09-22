@@ -77,8 +77,10 @@
 ; Le polynome donne est multi-symetrique sous forme contractee
 ;----------------------------------------------------------------------------
 (defun $multi_elem_init ($multi_lelem $multi_pc $llvar)
-  (multi_elem (mapcar 'cdr (cdr $multi_lelem)) $multi_pc
-              (cdr $llvar)))
+  ; E_RED2, reached through MULTI_ELEM, assigns LISTEI.
+  (let ((listei (and (boundp 'listei) listei)))
+    (multi_elem (mapcar 'cdr (cdr $multi_lelem)) $multi_pc
+                (cdr $llvar))))
 
 ; cf. e_red1 plus loin
 
@@ -100,13 +102,9 @@
 
 
 (defun $elem_init (valei sym $lvar)
-  (let ((sauvlistei
-            (cdr (flet ((franz.boundp (name)
-                            "equivalent to Franz Lisp 'boundp'."
-                            (and (boundp name)
-                                 (cons nil (symbol-value name)))))
-                   (franz.boundp 'listei)))))
-    (prog1 (case $elem
+  ; E_RED2 assigns LISTEI; bind it so that runners keep their own.
+  (let ((listei (and (boundp 'listei) listei)))
+    (case $elem
              (1 ; sym = polynome contracte 
               (if (meval (list '($is) (list '(mequal) sym 0))) 0
                   (e_red1 (cdr valei) 
@@ -133,8 +131,7 @@
                (e_red1 (cdr valei) (mapcar 'cdr (cdr sym))))
              (6 ; sym = REP([pol])(2)
                (e_red1 (cdr valei) (lgparts (mapcar 'cdr (cdr sym)))))
-             (t "erreur $elem n'a pas de valeur"))
-      (setq listei sauvlistei))))
+             (t "erreur $elem n'a pas de valeur"))))
 
 (defun e_red1 (l ppart) 
   (e_red2 ($degrep ppart)
@@ -170,7 +167,7 @@
       (rangei2 (cons (flet ((franz.concat (&rest args)
                                 "equivalent to Franz Lisp 'concat'."
                                 (values (intern
-                                         (format nil "~{~A~}" args)))))
+                                         (format nil "~{~A~}" args) :maxima))))
                        (franz.concat '$e i))
                      lesei)
                (1+ i)
@@ -182,7 +179,9 @@
 ;-------------------------------------------------------------------------
 
 (defun $reduit (card sym)
-  (let ((I (moni sym)))
+  ; FACTPART passes NB1 to DEVEL1 and DEVEL3.
+  (let ((nb1 0)
+        (I (moni sym)))
     (if (or (null sym) (syele I)) (e_ecrit sym)
         ($reduit card
                  (somme (cdr sym)

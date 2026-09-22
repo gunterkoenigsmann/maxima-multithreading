@@ -89,7 +89,7 @@
              (cons (flet ((franz.concat (&rest args)
                               "equivalent to Franz Lisp 'concat'."
                               (values (intern
-                                       (format nil "~{~A~}" args)))))
+                                       (format nil "~{~A~}" args) :maxima))))
                      (franz.concat '$x nb))
                    lvar)))))
 
@@ -102,7 +102,7 @@
     (t (lvar_lettre (1- nb)
            (cons (flet ((franz.concat (&rest args)
                             "equivalent to Franz Lisp 'concat'."
-                            (values (intern (format nil "~{~A~}" args)))))
+                            (values (intern (format nil "~{~A~}" args) :maxima))))
                    (franz.concat lettre nb))
                  lvar)
            lettre))))
@@ -111,13 +111,13 @@
 ;             Calcul du degre d'un polynome symetrique 
 ; avec REP([pol]) = [lppart](2)
 
-(defun $degrep (pol) 
-  (setq d 0)
-  (mapc #'(lambda (di) 
-           (and (< d di)
-                (setq d di)))
-        (mapcar #'(lambda (mon) ($degre (cddr mon))) pol ))
-  d)
+(defun $degrep (pol)
+  (let ((d 0))
+    (mapc #'(lambda (di)
+             (and (< d di)
+                  (setq d di)))
+          (mapcar #'(lambda (mon) ($degre (cddr mon))) pol ))
+    d))
 
 ; Calcul du degre d'une forme monomiale avec REP([forme mon])=[partition](2)
 ; mon = (lgI coeI . I)

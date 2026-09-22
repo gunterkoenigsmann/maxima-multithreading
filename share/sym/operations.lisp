@@ -102,7 +102,7 @@
                                     "equivalent to Franz Lisp 'concat'."
                                     (values
                                      (intern
-                                      (format nil "~{~A~}" args)))))
+                                      (format nil "~{~A~}" args) :maxima))))
                               (franz.concat $oper suffixe))))
                      '(moins mult add divi exp fadd fmult))
              '($moins_sym $mult_sym $add_sym $divi_sym $exp_sym
