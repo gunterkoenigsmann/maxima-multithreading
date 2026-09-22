@@ -87,6 +87,9 @@ Maxima 5.50-post change log
 * ode2() keeps the working variables of its first-order method to
   itself, so concurrent calls no longer return each other's
   intermediate results as the solution.
+* bfzeta() declares the loop temporary its Borwein summation writes, so
+  concurrent calls with a complex argument no longer pick up each
+  other's values.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL

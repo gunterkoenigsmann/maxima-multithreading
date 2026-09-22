@@ -55,3 +55,20 @@ bfpsi0(1e-10, 32);
 
 (reset(float_approx_equal_tolerance),0);
 0$
+
+/* bfzeta_borwein counts on tlbk being its own.  Concurrent calls sharing
+   it returned wrong values, 64 of 64 (GitHub issue #112). */
+
+(kill(all), load(bffac), bfzeta(2 + %i/4, 30));
+1.586445771998295749230521059480558b0-2.196808082421805213634537508669211b-1*%i;
+
+block([ref: makelist(bfzeta(2 + %i*i/4, 30), i, 1, 16), bad: 0, v],
+  for k thru 4 do
+    (v: parallel_makelist(bfzeta(2 + %i*i/4, 30), i, 1, 16),
+     bad: bad + length(sublist(makelist(is(v[j] = ref[j]), j, 1, 16),
+                               lambda([q], q # true)))),
+  bad);
+0;
+
+(kill(all), 0);
+0;
