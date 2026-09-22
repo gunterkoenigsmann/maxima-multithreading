@@ -1,6 +1,11 @@
 Maxima 5.50-post change log
 ===========================
 
+* Give each Gaussian elimination its own working arrays. solve, linsolve,
+  determinant, rank, echelon, triangularize, invert_by_gausselim and the
+  Risch integrator's linear systems no longer keep them in shared global
+  variables, so concurrent calls cannot corrupt each other's results.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
