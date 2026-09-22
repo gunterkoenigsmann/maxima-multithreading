@@ -138,7 +138,14 @@ jobs:
           make 2>&1 | tee build.log
 
       - name: Test suite
-        run: make check
+        # tee, because the per-test logs cannot be relied on: tests/test.sh
+        # removes its own $lisp.log on BOTH paths, success and failure, so a
+        # failed run uploads an artifact with everything except the thing
+        # that failed.  Measured on this workflow's first run (PR #109,
+        # sbcl): the artifact held only sbcl-depcheck.sh.log, which passed.
+        run: |
+          set -o pipefail
+          make check 2>&1 | tee check.log
 
       - name: Keep the logs when something failed
         if: failure()
@@ -147,6 +154,7 @@ jobs:
           name: logs-pr${{ matrix.pr }}-${{ matrix.lisp }}
           path: |
             build.log
+            check.log
             config.log
             tests/*.log
           if-no-files-found: ignore
