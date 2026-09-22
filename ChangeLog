@@ -78,6 +78,9 @@ Maxima 5.50-post change log
 * The record of the calls in progress that guards against unbounded
   recursion belongs to one thread, so is(equal(...)) no longer answers
   unknown in parallel code, nor serially after it.
+* Inside a parallel element, limit() makes its assumptions in a scratch
+  context of its own, so concurrent limits of the same variable no longer
+  take each other's facts away.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
