@@ -568,28 +568,25 @@
       (t (setq *fact-protected* t) nil))))
 
 (defun fdel (fact data)
-  (cond ((and (eq (car fact) (caaar data))
-	      (eq (cadr fact) (cadaar data))
-	      (eq (caddr fact) (caddar (car data)))
-	      (removablep (car data)))
-	 (let ((rest (cdr data)))
-	   (uncntxt (car data))
-	   (setq *fact-removed* t)
-	   rest))
-	(t
-	 (do ((ds data (cdr ds))
-	      (dat))
-	     ((null (cdr ds)))
-	   (setq dat (cadr ds))
-	   (cond ((and (eq (car fact) (caar dat))
-		       (eq (cadr fact) (cadar dat))
-		       (eq (caddr fact) (caddar dat))
-		       (removablep dat))
-		  (rplacd ds (cddr ds))
-		  (uncntxt dat)
-		  (setq *fact-removed* t)
-		  (return t))))
-	 data)))
+  "Remove the removable datum stating FACT from DATA; return the new list.
+  A datum of an active context -- the current one or one it sees -- comes
+  first: a node's list can hold the same fact for several contexts, newest
+  first, and the one to forget is the caller's own. Only if no active
+  context holds it is a datum of another context removed."
+  (flet ((matchp (dat)
+	   (and (eq (car fact) (caar dat))
+		(eq (cadr fact) (cadar dat))
+		(eq (caddr fact) (caddar dat))
+		(removablep dat))))
+    (let ((dat (or (progn (contextmark)
+			  (find-if #'(lambda (dat) (and (matchp dat) (cntp dat)))
+				   data))
+		   (find-if #'matchp data))))
+      (cond (dat
+	     (uncntxt dat)
+	     (setq *fact-removed* t)
+	     (delete dat data :test #'eq :count 1))
+	    (t data)))))
 
 (defun semantics (pat)
   (if (atom pat)
