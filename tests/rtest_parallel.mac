@@ -216,6 +216,33 @@ true$
      else is(parallel_worker_items() = 0));
 true$
 
+/* factor() chooses a prime (FACT5) and later lifts modulo it (Z1), and
+   passes it between the two in *PRIME, which is special only while
+   factor.lisp compiles.  Each factorization must bind it: assigned, one
+   runner lifted modulo another's prime, and 48 parallel factor() calls
+   stopped with "CQUOTIENT: quotient is not exact" in 8 runs of 8 on SBCL
+   and CCL (GitHub issue #87).  The first check needs no threads: a call
+   must leave the global value as it found it. */
+
+(prime_scratch() := if ?boundp('?\*prime) then [?symbol\-value('?\*prime)]
+                     else [],
+ prime_before: prime_scratch(),
+ [string(factor(x^4 - y^4 + 3*(x^2 - y^2))),
+  is(prime_scratch() = prime_before)]);
+["-((y-x)*(y+x)*(y^2+x^2+3))", true]$
+
+(factor_pair(i) := factor(x^4 - y^4 + i*(x^2 - y^2)),
+ factor_ref: makelist(factor_pair(i), i, 1, 48),
+ 0);
+0$
+
+(parallel_reset_counters(),
+ [is(parallel_makelist(factor_pair(i), i, 1, 48) = factor_ref),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[true, true]$
+
 /* --- the cap holds, and holds across nesting ---
 
    Sixteen elements over four nested regions must still respect one
