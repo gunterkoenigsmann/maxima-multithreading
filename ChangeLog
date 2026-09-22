@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Bind piece, the part the last part() or inpart() selected, per parallel
+  runner, so trigsimp and other share code reading it right after a part()
+  call see their own selection.
+
 * Keep nusum's term ratio and coefficients in locals, so concurrent nusum
   calls no longer return each other's or mixed closed forms.
 

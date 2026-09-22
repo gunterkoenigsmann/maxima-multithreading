@@ -140,7 +140,7 @@
 	  fpprec *bigfloatone* *bigfloatzero*	; bigfloat precision, and the
 	  *bfhalf* *bfmhalf*			; constants derived from it,
 	  *bfloat-header* *bfloat-header-prec*	; and the header memoized on it
-	  $multiplicities $%rnum_list $error $error_syms
+	  $multiplicities $%rnum_list $error $error_syms $piece
 	  $linenum $integration_constant_counter
 	  *integrator-powerl*		; the integrator's working state,
 	  *superexpt-base* *superexpt-pow* *superexpt-exptflag*	; sin.lisp
@@ -302,6 +302,13 @@
 	 ;; state that must agree gets bound together, state that must be
 	 ;; unique must not be bound at all.
 	 ($multiplicities $multiplicities)
+	 ;; PIECE is the part the last part()/inpart() call selected, and
+	 ;; code reads it right after that call -- trgsmp.mac does
+	 ;; get(piece, ...) after inpart(alt, 0), as do a dozen other share
+	 ;; packages.  Shared, another runner's part() lands in between:
+	 ;; measured, 48 parallel trigsimp() calls failed in 4 runs of 4
+	 ;; with "get: argument must be a symbol or a string; found: 2".
+	 ($piece $piece)
 	 ($%rnum_list $%rnum_list)
 	 ($error $error) ($error_syms $error_syms)
 	 ($linenum $linenum)
