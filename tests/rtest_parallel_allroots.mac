@@ -1,0 +1,84 @@
+/* allroots and bfallroots keep the polynomial and the Jenkins-Traub work
+   in ten arrays held in specials (*PR-SL*, *PI-SL*, *SHR-SL*, ...; see
+   src/cpoly.lisp), and read the roots back out of *PR-SL* and *PI-SL*.
+   Assigned globally, concurrent calls shared them: measured on SBCL, 48
+   parallel calls gave 14-21 errors per run, and 7-18 further results
+   differed from serial without any error -- partial factorizations with
+   complex coefficients for a real polynomial, and roots whose residual
+   reached 223475 (GitHub issue #65).  Each call now binds them. */
+(kill(all), 0);
+0$
+
+(allroots_arrays() :=
+   map(lambda([s], if ?boundp(s) then [?symbol\-value(s)] else []),
+       ['?\*pr\-sl\*, '?\*pi\-sl\*, '?\*shr\-sl\*, '?\*shi\-sl\*,
+        '?\*qpr\-sl\*, '?\*qpi\-sl\*, '?\*hr\-sl\*, '?\*hi\-sl\*,
+        '?\*qhr\-sl\*, '?\*qhi\-sl\*]),
+ same_arrays(a, b) :=
+   every(lambda([p, q],
+                if p = [] then is(q = [])
+                else is(q # [] and ?eq(first(p), first(q)))),
+         a, b),
+ /* Largest |p(r)| over the roots r of p returned by allroots */
+ residual(p, roots) :=
+   lmax(makelist(float(cabs(subst(r, p))), r, roots)),
+ 0);
+0$
+
+/* No thread needed: a call leaves the global arrays as it found them,
+   for the real (RPOLY-SL) and the complex (CPOLY-SL) method alike. */
+(s0: allroots_arrays(), r: allroots(x^3 - 3*x + 1),
+ [length(r), is(residual(x^3 - 3*x + 1, r) < 1e-12),
+  same_arrays(s0, allroots_arrays())]);
+[3, true, true]$
+
+(s0: allroots_arrays(), r: allroots(x^3 + %i*x + 2),
+ [length(r), is(residual(x^3 + %i*x + 2, r) < 1e-12),
+  same_arrays(s0, allroots_arrays())]);
+[3, true, true]$
+
+(s0: allroots_arrays(), r: bfallroots(x^4 - 2*x + 1),
+ [length(r), is(residual(x^4 - 2*x + 1, r) < 1e-12),
+  same_arrays(s0, allroots_arrays())]);
+[4, true, true]$
+
+/* With polyfactor the result is a product of factors: multiplied out it
+   must give the polynomial back. */
+(s0: allroots_arrays(), r: block([polyfactor: true], allroots(x^3 - 2)),
+ [is(lmax(makelist(float(cabs(coeff(expand(r) - (x^3 - 2), x, k))),
+                   k, 0, 3)) < 1e-12),
+  same_arrays(s0, allroots_arrays())]);
+[true, true]$
+
+/* In parallel, against the serial answers, and against the polynomials
+   themselves: every item must return one equation per degree whose
+   root satisfies its polynomial. */
+(p(i) := x^(3 + mod(i, 4)) - i*x + 1,
+ q(i) := x^(3 + mod(i, 3)) + i*%i*x - 2,
+ f(i) := (?sleep(0.002), [allroots(p(i)), allroots(q(i))]),
+ ref: makelist(f(i), i, 1, 48),
+ parallel_reset_counters(),
+ r: parallel_makelist(f(i), i, 1, 48),
+ is(r = ref));
+true$
+
+(if parallel_threads_available()
+     then is(parallel_worker_items() > 0)
+     else is(parallel_worker_items() = 0));
+true$
+
+sublist(makelist(i, i, 1, 48),
+        lambda([i],
+               not (is(length(first(r[i])) = 3 + mod(i, 4))
+                    and is(length(second(r[i])) = 3 + mod(i, 3))
+                    and is(residual(p(i), first(r[i])) < 1e-8*(i + 1))
+                    and is(residual(q(i), second(r[i])) < 1e-8*(i + 1)))));
+[]$
+
+(fpprec: 30,
+ g(i) := (?sleep(0.002), bfallroots(x^3 - i*x + 1)),
+ is(parallel_makelist(g(i), i, 1, 24) = makelist(g(i), i, 1, 24)));
+true$
+
+(fpprec: 16, kill(all), 0);
+0$

@@ -32,8 +32,13 @@
 		      *szr* *szi* *lzr* *lzi* *nz* *ui* *vi* *s*))
 
 (defmfun $allroots (expr)
+  ;; The coefficient and work arrays are bound per call: CPOLY-SL and
+  ;; RPOLY-SL fill them, and the roots are read back out of *PR-SL* and
+  ;; *PI-SL*.  Assigned globally, concurrent calls shared them.
   (prog (degree *nn* var res $partswitch $keepfloat $demoivre $listconstvars
-	 $algebraic complex $ratfac den expr1)
+	 $algebraic complex $ratfac den expr1
+	 *pr-sl* *pi-sl* *shr-sl* *shi-sl* *qpr-sl* *qpi-sl*
+	 *hr-sl* *hi-sl* *qhr-sl* *qhi-sl*)
      (setq $keepfloat t $listconstvars t $algebraic t)
      (setq expr1 (setq expr (meqhk expr)))
      (setq var (delete '$%i (cdr ($listofvars expr)) :test #'eq))
@@ -1315,7 +1320,10 @@
 	 ($keepfloat t)
 	 $demoivre
 	 ($listconstvars t)
-	 ($algebraic t) complex $ratfac den expr1)
+	 ($algebraic t) complex $ratfac den expr1
+	 ;; Bound per call, as in $ALLROOTS.
+	 *pr-sl* *pi-sl* *shr-sl* *shi-sl* *qpr-sl* *qpi-sl*
+	 *hr-sl* *hi-sl* *qhr-sl* *qhi-sl*)
      (setq expr1 (setq expr (meqhk expr)))
      (setq var (delete '$%i (cdr ($listofvars expr)) :test #'eq))
      (or var (setq var (list (gensym))))
