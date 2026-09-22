@@ -59,6 +59,10 @@ Maxima 5.50-post change log
   concurrent calls no longer fail, hang or return wrong cliques.
 * Bind the hash state of md5sum, sha1sum and sha256sum per call, so
   concurrent calls no longer return wrong digests.
+* Give each call of distrib's binomial, Poisson, beta, hypergeometric and
+  normal generators its own constants while it runs as a parallel
+  element, so parallel draws follow the requested distributions. Serial
+  draws are unchanged.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
