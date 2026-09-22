@@ -33,6 +33,8 @@ env:
   # Matches what src/testsuite.lisp's lists were written against;
   # verified here that 2.6.4 fails exactly what the lists declare.
   SBCL_VERSION: 2.6.4
+  # Likewise: the ECL list is documented as 23.9.9's results.
+  ECL_VERSION: 24.5.10
 
 permissions:
   contents: read
@@ -67,7 +69,8 @@ jobs:
             threads: expected
           - lisp: ecl
             configure: --enable-ecl
-            apt: ecl
+            # Built from source below, pinned; libgmp-dev is for that build.
+            apt: libgmp-dev
             threads: expected
           - lisp: gcl
             configure: --enable-gcl
@@ -110,6 +113,34 @@ jobs:
           echo "$ROOT/bin" >> "$GITHUB_PATH"
           echo "SBCL_HOME=$ROOT/lib/sbcl" >> "$GITHUB_ENV"
           "$ROOT/bin/sbcl" --version
+
+      - name: Build the pinned ECL
+        # Same story as SBCL: src/testsuite.lisp's ECL entry is commented
+        # "ECL 23.9.9 results" and ubuntu-latest ships 21.2.1, which fails
+        # rtestprintf 63, 65 and 69 on top of its list -- the ~13,6,3,1e
+        # carry case, rendered 10.000000e-001 instead of 1.000000e+000.
+        # Measured on 24.5.10 here: problem 61 and nothing else, exactly
+        # what the list declares.  ECL publishes no binary, so it is built
+        # from source; that costs minutes and buys a job whose red means
+        # something.
+        if: matrix.lisp == 'ecl'
+        run: |
+          set -eu
+          ROOT="$PWD/ecl-root"
+          curl -fsSL -o ecl.tgz \
+            "https://ecl.common-lisp.dev/static/files/release/ecl-${ECL_VERSION}.tgz"
+          tar xzf ecl.tgz
+          cd "ecl-${ECL_VERSION}"
+          # Quiet unless it breaks: a full ECL build buries the maxima
+          # log otherwise, but a failure here must still be readable.
+          { ./configure --prefix="$ROOT" > ecl-build.log 2>&1 \
+              && make -j"$(nproc)" >> ecl-build.log 2>&1 \
+              && make install >> ecl-build.log 2>&1 ; } \
+            || { echo "::group::ecl build log (tail)"; tail -80 ecl-build.log; \
+                 echo "::endgroup::"; exit 1; }
+          cd ..
+          echo "$ROOT/bin" >> "$GITHUB_PATH"
+          "$ROOT/bin/ecl" --version
 
       - name: Fetch Clozure CL
         if: matrix.lisp == 'ccl64'
