@@ -34,7 +34,7 @@ ode2a(eq,y,x):=block([de,a1,a2,a3,a4,%q%],
    if ftest(reduce(de)) then return(%q%) else return(false)))$
 
 block(local(eq,y,x),
-ode1a(eq,y,x):=block([de,des], /* f, g, %q% */
+ode1a(eq,y,x):=block([de,des,%q%,%f%,%g%],
    if derivdegree(de: expand(lhs(eq)-rhs(eq)),y,x) # 1
      then return(failure(msg1,eq)),
    if linear2(de,'diff(y,x)) = false then return(failure(msg2,eq)),
@@ -43,7 +43,7 @@ ode1a(eq,y,x):=block([de,des], /* f, g, %q% */
    if ftest(solvelnr(de)) then return(%q%),
    if ftest(separable(de)) then return(%q%),
    if ftest(integfactor(%g%,%f%)) then return(exact(%q%*%g%,%q%*%f%)),
-			       /* linear2 binds %f% and %g% */
+			       /* linear2 sets %f% and %g%, ftest %q% */
    if linear2(des,'diff(y,x)) = false then return(failure(msg2,eq)),
    if ftest(integfactor(%g%,%f%)) then return(exact(%q%*%g%,%q%*%f%)),
    if ftest(solvehom(de)) then return(%q%),

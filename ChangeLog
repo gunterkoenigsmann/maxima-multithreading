@@ -84,6 +84,9 @@ Maxima 5.50-post change log
 * Inside a parallel element, the assumption that ABSARG1 makes while it
   works goes into a scratch context of its own, so another runner no
   longer answers a question with it.
+* ode2() keeps the working variables of its first-order method to
+  itself, so concurrent calls no longer return each other's
+  intermediate results as the solution.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
