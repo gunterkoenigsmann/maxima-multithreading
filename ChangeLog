@@ -57,6 +57,8 @@ Maxima 5.50-post change log
 * Bind the search state of the graphs package's biconnected and strong
   components, maximum clique and planarity algorithms per call, so
   concurrent calls no longer fail, hang or return wrong cliques.
+* Bind the hash state of md5sum, sha1sum and sha256sum per call, so
+  concurrent calls no longer return wrong digests.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
