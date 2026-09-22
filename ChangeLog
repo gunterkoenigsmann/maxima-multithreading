@@ -43,6 +43,9 @@ Maxima 5.50-post change log
 * Start every parallel worker with CRE variable symbols of its own. Workers
   used to share the caller's, whose ranks rat() renumbers, so concurrent
   rat() and trigrat() calls could mix up variables between elements.
+* Give every parallel worker its own NN* and DN*, where NUMDEN leaves a
+  numerator and denominator for its caller. Shared, concurrent residue()
+  calls read each other's quotients and returned wrong residues.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL

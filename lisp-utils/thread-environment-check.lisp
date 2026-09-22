@@ -39,6 +39,8 @@
     sign minus odds evens
     ;; DISPLA's box dimensions and its layout scratch
     width height depth linearray *m *rule-symbol-pool*
+    ;; NUMDEN's numerator and denominator, scratch elsewhere as well
+    nn* dn*
     ;; MAPPLY1's compiled-lambda cache and its eviction randomness
     *lambda-expr-funs* *lambda-expr-funs-random*
     ;; CRE's variables and their ordering
