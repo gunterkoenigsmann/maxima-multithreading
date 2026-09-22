@@ -203,6 +203,17 @@ is(parallel_makelist(ratsimp((x^i - 1)/(x - 1)), i, 1, 12)
    = parallel_makelist(ratsimp((x^i - 1)/(x - 1)), i, 1, 12));
 true$
 
+/* jacobi_am's numerical AGM iteration works in arrays; each call needs
+   its own, in floats and in bigfloats */
+
+errcatch(is(parallel_makelist(jacobi_am(i/10.0, 0.5), i, 1, 200)
+            = makelist(jacobi_am(i/10.0, 0.5), i, 1, 200)));
+[true]$
+
+errcatch(is(parallel_makelist(jacobi_am(bfloat(i/10), 0.5b0), i, 1, 50)
+            = makelist(jacobi_am(bfloat(i/10), 0.5b0), i, 1, 50)));
+[true]$
+
 /* --- did the work really happen on another thread? ---
 
    The sleep is what makes this meaningful: with an instant body the

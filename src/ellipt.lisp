@@ -188,48 +188,46 @@
 ;;
 ;; Do not use this for computing jacobi sn.  It loses some 7 digits of
 ;; accuracy for sn(1+%i,0.7).
-(let ((an (make-array 100 :fill-pointer 0))
-      (bn (make-array 100 :fill-pointer 0))
-      (cn (make-array 100 :fill-pointer 0)))
-  ;; Instead of allocating these array anew each time, we'll reuse
-  ;; them and allow them to grow as needed.
-  (defun agm (a0 b0 c0 tol)
-    "Arithmetic-Geometric Mean algorithm for real or complex a0, b0, c0.
-    Algorithm continues until |c[n]| <= tol."
+(defun agm (a0 b0 c0 tol)
+  "Arithmetic-Geometric Mean algorithm for real or complex a0, b0, c0.
+  Algorithm continues until |c[n]| <= tol."
 
-    ;; DLMF (https://dlmf.nist.gov/22.20.ii) says for any real or
-    ;; complex a0 and b0, b0/a0 must not be real and negative.  Let's
-    ;; check that.
-    (let ((q (/ b0 a0)))
-      (when (and (= (imagpart q) 0)
-                 (minusp (realpart q)))
-        (error "Invalid arguments for AGM:  ~A ~A~%" a0 b0)))
-    (let ((nd (max (* 2 (ceiling (log (- (log tol 2))))) 8)))
-      ;; DLMF (https://dlmf.nist.gov/22.20.ii) says that |c[n]| <=
-      ;; C*2^(-2^n), for some constant C.  Solve C*2^(-2^n) = tol to
-      ;; get n = log(log(C/tol)/log(2))/log(2).  Arbitrarily assume C
-      ;; is one to get n = log(-(log(tol)/log(2)))/log(2).  Thus, the
-      ;; approximate number of term needed is n =
-      ;; 1.44*log(-(1.44*log(tol))).  Round to 2*log(-log2(tol)).
-      (setf (fill-pointer an) 0
-            (fill-pointer bn) 0
-            (fill-pointer cn) 0)
-      (vector-push-extend a0 an)
-      (vector-push-extend b0 bn)
-      (vector-push-extend c0 cn)
+  ;; DLMF (https://dlmf.nist.gov/22.20.ii) says for any real or
+  ;; complex a0 and b0, b0/a0 must not be real and negative.  Let's
+  ;; check that.
+  (let ((q (/ b0 a0)))
+    (when (and (= (imagpart q) 0)
+               (minusp (realpart q)))
+      (error "Invalid arguments for AGM:  ~A ~A~%" a0 b0)))
+  ;; The arrays are this call's own: they are returned to the caller,
+  ;; which reads them afterwards, and parallel runners call AGM at the
+  ;; same time.
+  (let ((nd (max (* 2 (ceiling (log (- (log tol 2))))) 8))
+        (an (make-array 100 :fill-pointer 0))
+        (bn (make-array 100 :fill-pointer 0))
+        (cn (make-array 100 :fill-pointer 0)))
+    ;; DLMF (https://dlmf.nist.gov/22.20.ii) says that |c[n]| <=
+    ;; C*2^(-2^n), for some constant C.  Solve C*2^(-2^n) = tol to
+    ;; get n = log(log(C/tol)/log(2))/log(2).  Arbitrarily assume C
+    ;; is one to get n = log(-(log(tol)/log(2)))/log(2).  Thus, the
+    ;; approximate number of term needed is n =
+    ;; 1.44*log(-(1.44*log(tol))).  Round to 2*log(-log2(tol)).
+    (vector-push-extend a0 an)
+    (vector-push-extend b0 bn)
+    (vector-push-extend c0 cn)
 
-      (do ((k 0 (1+ k)))
-          ((or (<= (abs (aref cn k)) tol)
-               (>= k nd))
-           (if (>= k nd)
-               (error "Failed to converge")
-               (values k an bn cn)))
-        (vector-push-extend (/ (+ (aref an k) (aref bn k)) 2) an)
-        ;; DLMF (https://dlmf.nist.gov/22.20.ii) has conditions on how
-        ;; to choose the square root depending on the phase of a[n-1]
-        ;; and b[n-1].  We don't check for that here.
-        (vector-push-extend (sqrt (* (aref an k) (aref bn k))) bn)
-        (vector-push-extend (/ (- (aref an k) (aref bn k)) 2) cn)))))
+    (do ((k 0 (1+ k)))
+        ((or (<= (abs (aref cn k)) tol)
+             (>= k nd))
+         (if (>= k nd)
+             (error "Failed to converge")
+             (values k an bn cn)))
+      (vector-push-extend (/ (+ (aref an k) (aref bn k)) 2) an)
+      ;; DLMF (https://dlmf.nist.gov/22.20.ii) has conditions on how
+      ;; to choose the square root depending on the phase of a[n-1]
+      ;; and b[n-1].  We don't check for that here.
+      (vector-push-extend (sqrt (* (aref an k) (aref bn k))) bn)
+      (vector-push-extend (/ (- (aref an k) (aref bn k)) 2) cn))))
 
 (defun jacobi-am-agm (u m tol)
   "Evaluate the jacobi_am function from real u and m with |m| <= 1.  This
