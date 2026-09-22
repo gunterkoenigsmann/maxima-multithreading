@@ -79,3 +79,17 @@ benefit_cost(0.24,[0,300,500,150],[100,320,0,180]);
 
 (reset(fpprec), 'done);
 'done$
+/* irr computed its answer in the session variable result, so it both
+   left that variable behind and returned another runner's answer in
+   parallel: measured 2 of 192 elements (GitHub issue #119). */
+
+(kill(result), load(finance), [irr([-5,1,2,3], 1), is(result = 'result)]);
+[[[r = 0.0]], true];
+
+block([ref: makelist(irr([-5 - i, 1, 2, 3], 1), i, 1, 24), bad: 0, v],
+  for k thru 4 do
+    (v: parallel_makelist(irr([-5 - %zz, 1, 2, 3], 1), %zz, 1, 24),
+     bad: bad + length(sublist(makelist(is(v[j] = ref[j]), j, 1, 24),
+                               lambda([q], q # true)))),
+  bad);
+0;

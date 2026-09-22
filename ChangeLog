@@ -95,6 +95,8 @@ Maxima 5.50-post change log
 * A call whose file is already loaded is no longer refused inside a
   parallel computation, so bit_and() and its neighbours in
   share/contrib/bitwise work there once the package is loaded.
+* irr() computes its answer in a variable of its own, so it no longer
+  leaves it in the session or returns another concurrent call's answer.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
