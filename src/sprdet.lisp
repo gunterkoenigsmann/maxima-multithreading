@@ -157,7 +157,7 @@
   (cond ((null (setq index (assoc index ml* :test #'equal))) 0)
 	(t (rplacd (cdr index) (1- (cddr index)))
 	 (when (= (cddr index) 0)
-	   (setf index (delete index ml* :test #'equal)))
+	   (setq ml* (delete index ml* :test #'equal)))
 	 (cadr index))))
 
 (defun tb2 (x l n)
@@ -255,7 +255,8 @@
      (when (not (mxcomp c0 r0))
        (atranspose x n)
        (setq c0 r0))
-     (setq *detsign* (prmusign (mapcar #'car c0)))
+     ;; NEWMAT makes column (CDR (NTH K C0)) of X column K+1 of X*.
+     (setq *detsign* (prmusign (mapcar #'cdr c0)))
      (newmat 'x* x n c0)))
 
 (defun newmat(x y n l)

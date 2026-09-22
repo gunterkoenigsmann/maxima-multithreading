@@ -33,6 +33,9 @@ Maxima 5.50-post change log
   sin.lisp, which lived in closures shared by every thread. Concurrent
   integrations of exponential and rational-root integrands no longer
   disturb each other's method choice or substitutions.
+* Fix determinant and invert with sparse: true for matrices with a block
+  of size 3 or more. They returned wrong values, including wrong signs
+  and results containing false, or signalled Lisp errors.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
