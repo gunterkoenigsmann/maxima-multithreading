@@ -1,6 +1,11 @@
 Maxima 5.50-post change log
 ===========================
 
+* A parallel element reads and prints the way its caller does. On CCL
+  the lisp reader and printer are per-thread, so a worker used the wrong
+  package, ibase, obase and default float format, and INTERN built
+  symbols that printed correctly without matching anything.
+
 * Build with GCL again on releases before Version_2_6_15pre19 (Debian
   gcl 2.6.14-20), whose compiler emits uncompilable C for the
   three-argument GETHASH in trigi.lisp and stops the build there.

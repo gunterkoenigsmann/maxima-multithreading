@@ -548,6 +548,48 @@ than for the computation."
          '*m
          '*standard-output* '*error-output* '*trace-output*
          '*query-io* '*standard-input*
+         ;; The lisp reader and printer are configured by the session and
+         ;; must reach the worker, because a parallel element has to give
+         ;; the answer the serial path gives.  Maxima establishes them in
+         ;; the thread it starts in -- MACSYMA-TOP-LEVEL binds *PACKAGE*
+         ;; (macsys.lisp), INIT-CL setfs *READ-DEFAULT-FLOAT-FORMAT*,
+         ;; *PRINT-LENGTH* and *PRINT-LEVEL*, and $IBASE and $OBASE are
+         ;; aliases for *READ-BASE* and *PRINT-BASE* -- and a new thread
+         ;; inherits neither a binding nor, on a lisp that makes these
+         ;; per-thread, a global.
+         ;;
+         ;; CCL does make them per-thread, and init-cl.lisp has said so
+         ;; since CCL 1.5 about *READ-DEFAULT-FLOAT-FORMAT* alone.
+         ;; Measured on CCL 1.13, 8 elements, against the same caller:
+         ;;
+         ;;   *PACKAGE*                   MAXIMA -> COMMON-LISP-USER
+         ;;   *READ-BASE*     (ibase: 16)     16 -> 10
+         ;;   *PRINT-BASE*    (obase: 16)     16 -> 10
+         ;;   *READ-DEFAULT-FLOAT-FORMAT* DOUBLE-FLOAT -> SINGLE-FLOAT
+         ;;   *PRINT-LEVEL*  / *PRINT-LENGTH*   15/100 -> NIL/NIL
+         ;;
+         ;; SBCL carries all of them over and shows none of this, so one
+         ;; lisp says nothing about the other here.  The package one is
+         ;; the quiet one: a bare INTERN in a worker builds a symbol that
+         ;; prints exactly like the Maxima one and is not EQ to it, so
+         ;; the answer looks right and does not match (#128).
+         ;;
+         ;; The whole reader/printer environment is taken, not the six
+         ;; that were caught: the rule is that a worker continues its
+         ;; caller's, and that rule does not depend on which variables a
+         ;; particular lisp happens to reset this year.
+         '*package* '*readtable* '*read-base* '*read-default-float-format*
+         '*read-eval* '*read-suppress*
+         '*print-base* '*print-radix* '*print-case* '*print-circle*
+         '*print-escape* '*print-gensym* '*print-level* '*print-length*
+         '*print-lines* '*print-array* '*print-pretty*
+         '*print-right-margin* '*print-miser-width*
+         ;; *RANDOM-STATE* is deliberately NOT here, although it differs
+         ;; in a worker on CCL for the same reason.  RANDOM mutates the
+         ;; state object in place, so handing every worker the caller's
+         ;; one would replace a harmless difference with a race on it.
+         ;; A worker wants its own, as WITH-THREAD-LOCAL-ENVIRONMENT
+         ;; already gives the lambda cache.
          specials))))
 
 ;;; Giving each runner a context of its own -- so that facts a body

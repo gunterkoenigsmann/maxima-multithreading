@@ -1104,3 +1104,34 @@ true$
 
 (kill(all),0);
 0$
+
+/* A parallel element reads and prints the way its caller does.  Maxima
+   configures the lisp reader and printer in the thread it starts in, and
+   CCL makes them per-thread, so a worker used the wrong package, ibase,
+   obase and default float format (GitHub issue #128).  Measured on the
+   base, CCL 1.13, 8 elements: string(255) under obase:16 came back 255
+   instead of 0FF, a bare INTERN built a symbol that printed like the
+   Maxima one without being EQ to it, and read-from-string("1.5") gave a
+   single float, 1.5s0.  SBCL carries all of them over and showed none of
+   it, so one lisp said nothing about the other.  On a lisp without
+   threads each element runs serially and every answer matches anyway. */
+
+(kill(all), parallel_threads: 4, 0);
+0$
+
+block([r, p], obase: 16, r: string(255),
+  p: unique(parallel_makelist(string(255), %zz, 1, 8)),
+  obase: 10, is(p = [r]));
+true$
+
+is(?intern("PROBESYM") = first(parallel_makelist(?intern("PROBESYM"), %zz, 1, 8)));
+true$
+
+/* The float format needs the TYPE compared, not the value: is(1.5 = 1.5s0)
+   is true, so comparing the numbers cannot see the difference. */
+is(?type\-of(?read\-from\-string("1.5"))
+   = first(parallel_makelist(?type\-of(?read\-from\-string("1.5")), %zz, 1, 8)));
+true$
+
+(kill(all), 0);
+0$
