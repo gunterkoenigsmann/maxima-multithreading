@@ -1058,8 +1058,21 @@ the hashtable.")
            (*fpatan y (list x)))
            ;; Look up atan(extended real, extended real) in a hashtable. When the value
            ;; isn't found in the hashtable, return a nounform.
+           ;;
+           ;; Asked with a third argument, this miscompiles on GCL before
+           ;; Version_2_6_15pre19 (Debian gcl 2.6.14-20): C2GETHASH types
+           ;; three arguments with a two-element list, so the default gets
+           ;; the type NIL, WT-CVARS takes that for its "no group yet"
+           ;; sentinel and emits a broken #define VC..., and a missing
+           ;; CLOSE-INLINE-BLOCKS leaves `{object Vn;' unclosed.  The
+           ;; generated trigi.c then fails to compile and the GCL build
+           ;; stops there.  MULTIPLE-VALUE-BIND asks for two values
+           ;; instead, which every GCL compiles, and it also stops
+           ;; building the nounform on every lookup that hits.
            ((and (member x *extended-reals*) (member y *extended-reals*))
-            (gethash (list y x) *atan2-extended-real-hashtable* (give-up)))
+            (multiple-value-bind (value foundp)
+                (gethash (list y x) *atan2-extended-real-hashtable*)
+              (if foundp value (give-up))))
 
            ;;When either `x` or `y` is in ($und infinity $ind), give up
            ((or (member x '($und $infinity $ind)) (member y '($und $infinity $ind)))

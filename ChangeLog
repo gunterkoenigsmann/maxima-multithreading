@@ -1,6 +1,10 @@
 Maxima 5.50-post change log
 ===========================
 
+* Build with GCL again on releases before Version_2_6_15pre19 (Debian
+  gcl 2.6.14-20), whose compiler emits uncompilable C for the
+  three-argument GETHASH in trigi.lisp and stops the build there.
+
 * Give each simplify_sum call its own working variables and its own
   assumption contexts. Concurrent sums no longer corrupt each other, and a
   user context named like simplify_sum's old scratch contexts is no longer
@@ -97,7 +101,6 @@ Maxima 5.50-post change log
   share/contrib/bitwise work there once the package is loaded.
 * irr() computes its answer in a variable of its own, so it no longer
   leaves it in the session or returns another concurrent call's answer.
-
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
