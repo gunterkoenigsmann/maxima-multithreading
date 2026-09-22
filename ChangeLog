@@ -5,6 +5,10 @@ Maxima 5.50-post change log
   gcl 2.6.14-20), whose compiler emits uncompilable C for the
   three-argument GETHASH in trigi.lisp and stops the build there.
 
+* The fact database's label tracing prints on *trace-output*, like the
+  messages it belongs to, and no longer uses a FORMAT directive GCL
+  rejects.
+
 * Give each simplify_sum call its own working variables and its own
   assumption contexts. Concurrent sums no longer corrupt each other, and a
   user context named like simplify_sum's old scratch contexts is no longer

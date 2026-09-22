@@ -212,9 +212,28 @@
       (setq x (logior x (caaar l))))))
 
 (defun prlab (x)
+  "Print X's label bits on *TRACE-OUTPUT*, grouped in threes."
+  ;; Two things this used to get wrong, both invisible at a terminal.
+  ;;
+  ;; The directive was " ~,,' ,3:B" -- binary, a space every three digits.
+  ;; ANSI allows a fourth parameter on ~B; GCL's FORMAT does not, and
+  ;; signals "Format error: too many parameters" instead of printing.  The
+  ;; grouping is done here now, so every lisp prints the same thing.
+  ;;
+  ;; And it printed on T, that is *STANDARD-OUTPUT*, while all four
+  ;; callers write their message on *TRACE-OUTPUT*: the label arrived on a
+  ;; different stream from the line it belongs to, and binding
+  ;; *TRACE-OUTPUT* away -- which is how one asks for quiet tracing -- did
+  ;; not silence it.
   (setq x (unlab x))
   (when x
-    (format t " ~,,' ,3:B" (logandc1 +lab-high-bit+ x))))
+    (let* ((digits (format nil "~B" (logandc1 +lab-high-bit+ x)))
+           (n (length digits)))
+      (write-char #\Space *trace-output*)
+      (dotimes (i n)
+        (when (and (plusp i) (zerop (mod (- n i) 3)))
+          (write-char #\Space *trace-output*))
+        (write-char (char digits i) *trace-output*)))))
 
 (defun onp (cl lab)
   (subp lab (+labz cl)))
