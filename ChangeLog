@@ -49,6 +49,8 @@ Maxima 5.50-post change log
 * Bind the string stream parse_string and eval_string read instead of
   assigning it globally, so concurrent calls no longer read each other's
   strings.
+* Bind the working arrays of newdet and permanent per call, so concurrent
+  calls, including matrixexp, no longer fail with Lisp errors.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
