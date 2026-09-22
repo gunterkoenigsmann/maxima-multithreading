@@ -81,6 +81,9 @@ Maxima 5.50-post change log
 * Inside a parallel element, limit() makes its assumptions in a scratch
   context of its own, so concurrent limits of the same variable no longer
   take each other's facts away.
+* Inside a parallel element, the assumption that ABSARG1 makes while it
+  works goes into a scratch context of its own, so another runner no
+  longer answers a question with it.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL

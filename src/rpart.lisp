@@ -384,12 +384,22 @@
 		    (free (setq arg1 (sratsimp arg)) '$%i))
 		(not (eq (csign arg1) t)))
 	   (setq arg arg1)
-	   (if implicit-real
-	       (cons arg 0)
-	       (let ((fact (assume `(($notequal) ,arg 0))))
-	       (unwind-protect
-			(absarg arg)
-			(forget fact)))))
+	   ;; Inside a parallel element the fact goes into a scratch context
+	   ;; of this call's own: the context the caller works in is shared
+	   ;; with the other runners, and one of them asking about ARG while
+	   ;; this fact is in place would get the answer this call assumed.
+	   ;; Killing that context removes exactly this fact, where FORGET
+	   ;; matches by content and could take another runner's equal fact.
+	   (cond (implicit-real (cons arg 0))
+		 (*parallel-evaluation-p*
+		  (with-new-context (context)
+		    (assume `(($notequal) ,arg 0))
+		    (absarg arg)))
+		 (t
+		  (let ((fact (assume `(($notequal) ,arg 0))))
+		    (unwind-protect
+			 (absarg arg)
+		      (forget fact))))))
 	  (t (absarg arg)))))
 
 ;;;	Main function
