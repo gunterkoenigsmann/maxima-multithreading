@@ -90,6 +90,8 @@ Maxima 5.50-post change log
 * bfzeta() declares the loop temporary its Borwein summation writes, so
   concurrent calls with a complex argument no longer pick up each
   other's values.
+* ranks() builds its result in a list of its own, so concurrent calls no
+  longer return each other's ranks.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL

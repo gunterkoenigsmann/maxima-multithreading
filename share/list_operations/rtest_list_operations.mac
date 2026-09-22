@@ -428,3 +428,22 @@ true;
 
 test_find_runs_with_strings (sort (l));
 true;
+
+/* ranks1 builds its result in %ranks and then changes entries in it.
+   Concurrent calls sharing that list returned each other's ranks, 59 of
+   64 (GitHub issue #113). */
+
+(kill(all), ranks([3, 1, 2]));
+[3, 1, 2];
+
+block([ref: makelist(ranks(makelist(mod(j*i + 3, 17), j, 1, 12)), i, 1, 16),
+       bad: 0, v],
+  for k thru 4 do
+    (v: parallel_makelist(ranks(makelist(mod(j*i + 3, 17), j, 1, 12)), i, 1, 16),
+     bad: bad + length(sublist(makelist(is(v[j] = ref[j]), j, 1, 16),
+                               lambda([q], q # true)))),
+  bad);
+0;
+
+(kill(all), 0);
+0;
