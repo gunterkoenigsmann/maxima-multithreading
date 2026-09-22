@@ -168,6 +168,35 @@ is(parallel_makelist(expand((x + i)^5), i, 1, 10)
    = makelist(expand((x + i)^5), i, 1, 10));
 true$
 
+/* parse_string() binds the string stream it reads rather than assigning
+   the global *PARSE-STRING-INPUT-STREAM*.  Assigned, a concurrent call
+   could replace the stream before MREAD read it, and both calls then read
+   one string in turns: measured, 420 to 689 of 9600 parallel parses came
+   back as fragments of other elements' strings on CCL, such as 15*y+8,
+   and up to 4 on SBCL (GitHub issue #84).  The first check needs no
+   threads: a parse must leave the global value as it found it. */
+
+(parse_string("1"),
+ ps0: ?\*parse\-string\-input\-stream\*,
+ parse_string("x^2 + y"),
+ is(?\*parse\-string\-input\-stream\* = ps0));
+true$
+
+(parse_errors(i) := block([bad: 0],
+   for j thru 200 do
+     if parse_string(sconcat("x^", i, " + ", j, "*y")) # x^i + j*y
+       then bad: bad + 1,
+   bad),
+ parse_errors(1));
+0$
+
+(parallel_reset_counters(),
+ [apply("+", parallel_makelist(parse_errors(i), i, 1, 48)),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[0, true]$
+
 /* --- the same answers twice: results must not depend on timing --- */
 
 is(parallel_makelist(ratsimp((x^i - 1)/(x - 1)), i, 1, 12)
