@@ -157,3 +157,29 @@ bit_length(2^dk);
 dk+1$
 bit_length(4^dk);
 2*dk+1$
+
+/* The autoload property stays on a symbol after its file is loaded, and
+   MEVAL comes back to the loader for every call to a function the file
+   does not define under that name -- all eight bit_* functions.  Inside a
+   parallel element that raised "load: this function cannot run in a
+   parallel computation", although nothing was left to load
+   (GitHub issue #115). */
+
+(kill(all), load(bitwise), bit_not(8));
+-9;
+
+is(parallel_makelist(bit_not(8 + i), i, 1, 16)
+   = makelist(-(9 + i), i, 1, 16));
+true;
+
+is(parallel_makelist(bit_and(42, 63 - i), i, 1, 16)
+   = makelist(bit_and(42, 63 - i), i, 1, 16));
+true;
+
+/* a load that really has to happen is still refused there */
+
+errcatch(parallel_makelist(load(descriptive), i, 1, 2));
+[];
+
+(kill(all), 0);
+0;

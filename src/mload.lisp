@@ -225,8 +225,8 @@
 ;; ...).
 
 (defun generic-autoload (file &aux type)
-  (ensure-serial-execution '$load)
   (unless (member file *autoloaded-files* :test #'equal)
+    (ensure-serial-execution '$load)
     (push file *autoloaded-files*)
     (setq file (pathname (cdr file)))
     (setq type (pathname-type file))

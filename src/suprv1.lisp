@@ -410,11 +410,21 @@
 
 (defun load-function (func mexprp)	; The dynamic loader
   (declare (ignore mexprp))
+  ;; The AUTOLOAD property stays on the symbol once its file is loaded,
+  ;; and MEVAL comes back here for every later call to a function the
+  ;; file does not define under that name -- BIT_AND and its seven
+  ;; neighbours in share/contrib/bitwise are such functions.  Only a call
+  ;; that still has something to load may not run in parallel; a call
+  ;; that finds its file already loaded does nothing and is allowed.
+  ;; AUTOLOAD may be any function, and one of its own making need not
+  ;; record what it loaded, so the check is on this entry, not on what
+  ;; the handler does with it.
   (let ((file (get func 'autoload)))
-    (if file
-        (progn
-          (ensure-serial-execution '$load)
-          (funcall autoload (cons func file))))))
+    (when file
+      (let ((entry (cons func file)))
+        (unless (member entry *autoloaded-files* :test #'equal)
+          (ensure-serial-execution '$load))
+        (funcall autoload entry)))))
 
 (defmspec $loadfile (form)
   (loadfile (namestring (maxima-string (meval (cadr form)))) nil
