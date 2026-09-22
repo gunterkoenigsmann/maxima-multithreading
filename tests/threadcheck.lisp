@@ -18,8 +18,9 @@
                (cond
                  ((equal mode "bindings")
                   (let* ((leaked (run 'check-bindings))
-                         (fresh (run 'check-fresh-linearray)))
-                    (setf status (if (and (null leaked) fresh) 0 1)))
+                         (fresh (run 'check-fresh-linearray))
+                         (genvar (run 'check-fresh-genvar)))
+                    (setf status (if (and (null leaked) fresh genvar) 0 1)))
                   (when (zerop status)
                     (load (merge-pathnames "threadcheck-regression.lisp"
                                            directory))

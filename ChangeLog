@@ -40,6 +40,9 @@ Maxima 5.50-post change log
   of on the symbols' property lists, so concurrent calls no longer miss
   each other's substitutions. This also makes parallel eigenvectors
   return normalized eigenvectors.
+* Start every parallel worker with CRE variable symbols of its own. Workers
+  used to share the caller's, whose ranks rat() renumbers, so concurrent
+  rat() and trigrat() calls could mix up variables between elements.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
