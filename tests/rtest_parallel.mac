@@ -333,6 +333,47 @@ true$
 (parallel_threads: 0, 0);
 0$
 
+/* The graphs package keeps each search's state in special variables:
+   the depth-first search of biconnected_components() (which
+   tutte_polynomial(), is_planar() and hamilton_cycle() call),
+   strong_components(), max_clique() and the planarity test.  Each entry
+   point must bind its state: assigned, concurrent searches shared one
+   set of tables -- measured on SBCL, 5 runs of 5 failed with Lisp errors
+   for biconnected_components(), strong_components(), is_planar() and
+   hamilton_cycle(), max_clique() returned 62 wrong cliques of 120, and
+   planar_embedding() hung (GitHub issue #75).  The first check needs no
+   threads: the searches must leave the global values as they found
+   them. */
+
+(load(graphs),
+ graph_scratch() :=
+   map(lambda([s], if ?boundp(s) then [?symbol\-value(s)] else []),
+       ['?\*dfs\-bicomp\-num\*, '?\*bicomponents\*, '?\*scon\-low\*,
+        '?\*scon\-comp\*, '?\*maximum\-clique\*, '?\*facial\-walks\*,
+        '?\*visited\-vertices\*, '?\*available\-faces\*]),
+ graph_before: graph_scratch(),
+ [biconnected_components(cycle_graph(5)),
+  map(sort, strong_components(cycle_digraph(3))),
+  max_clique(complete_graph(4)),
+  is_planar(wheel_graph(5)),
+  is(graph_scratch() = graph_before)]);
+[[[0, 1, 2, 3, 4]], [[0, 1, 2]], [0, 1, 2, 3], true, true]$
+
+(graph_items(i) := [biconnected_components(cycle_graph(mod(i, 5) + 4)),
+                    strong_components(cycle_digraph(mod(i, 6) + 3)),
+                    max_clique(complete_graph(mod(i, 5) + 3)),
+                    is_planar(petersen_graph())],
+ graph_ref: makelist(graph_items(i), i, 1, 24),
+ 0);
+0$
+
+(parallel_reset_counters(),
+ [is(parallel_makelist(graph_items(i), i, 1, 24) = graph_ref),
+  if parallel_threads_available()
+      then is(parallel_worker_items() > 0)
+      else is(parallel_worker_items() = 0)]);
+[true, true]$
+
 /* --- parallel(for ...) ---
 
    "for" is reader syntax, so it cannot be called as parallel_for(...);

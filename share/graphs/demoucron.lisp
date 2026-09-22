@@ -293,7 +293,14 @@
 	(*bridges*)
 	(*h-edges* (make-hash-table :test #'equal))
 	(*g-vertices* (cdr ($vertices g)))
-	(*embedding* (make-hash-table :test #'equal)))
+	(*embedding* (make-hash-table :test #'equal))
+	;; FIND-BRIDGES, FIND-FACIAL-WALKS and MATCH-BRIDGES-TO-WALKS assign
+	;; these; bound here, concurrent calls do not share them.
+	(*facial-walks*)
+	(*visited-vertices*)
+	(*current-bridge*)
+	(*current-attachements*)
+	(*available-faces*))
 
     ;; find a cycle - assumes there are no degree one vertices!
     (setq *h-vertices* (find-cycle g))

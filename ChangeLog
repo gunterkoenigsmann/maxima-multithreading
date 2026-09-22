@@ -54,6 +54,9 @@ Maxima 5.50-post change log
 * Give each factorization its own working prime, so concurrent factor()
   calls on multivariate polynomials no longer fail with "CQUOTIENT:
   quotient is not exact".
+* Bind the search state of the graphs package's biconnected and strong
+  components, maximum clique and planarity algorithms per call, so
+  concurrent calls no longer fail, hang or return wrong cliques.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
