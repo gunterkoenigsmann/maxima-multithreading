@@ -6,6 +6,11 @@ Maxima 5.50-post change log
   Risch integrator's linear systems no longer keep them in shared global
   variables, so concurrent calls cannot corrupt each other's results.
 
+* Give each thread its own copy of the integrator's working state in
+  sin.lisp, which lived in closures shared by every thread. Concurrent
+  integrations of exponential and rational-root integrands no longer
+  disturb each other's method choice or substitutions.
+
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
   releases older than 24, whose interrupt deferral can lose worker
