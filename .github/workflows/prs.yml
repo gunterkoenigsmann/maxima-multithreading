@@ -37,6 +37,11 @@ on:
     # two do not compete for runners.
     - cron: '17 5 * * *'
 
+env:
+  # Matches what src/testsuite.lisp's lists were written against;
+  # verified here that 2.6.4 fails exactly what the lists declare.
+  SBCL_VERSION: 2.6.4
+
 permissions:
   contents: read
   pull-requests: read
@@ -113,7 +118,26 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y --no-install-recommends \
             texinfo autoconf automake make gcc \
-            ${{ matrix.lisp == 'ccl64' && ' ' || matrix.lisp }}
+            ${{ (matrix.lisp == 'ccl64' || matrix.lisp == 'sbcl') && ' ' || matrix.lisp }}
+
+      - name: Fetch the pinned SBCL
+        # NOT apt's sbcl.  Maxima's per-lisp expected-failure lists in
+        # src/testsuite.lisp are written against current lisps, and
+        # ubuntu-latest ships SBCL 2.2.9, which fails rtestprintf 38 on
+        # top of its list.  Measured: 2.6.4 matches the list exactly and
+        # 2.2.9 does not, so the red was version skew and not a bug.
+        # Pinning makes a red sbcl job mean something again.
+        if: matrix.lisp == 'sbcl'
+        run: |
+          set -eu
+          ROOT="$PWD/sbcl-root"
+          curl -fsSL -o sbcl.tar.bz2 \
+            "https://prdownloads.sourceforge.net/sbcl/sbcl-${SBCL_VERSION}-x86-64-linux-binary.tar.bz2"
+          tar xjf sbcl.tar.bz2
+          ( cd "sbcl-${SBCL_VERSION}-x86-64-linux" && INSTALL_ROOT="$ROOT" sh install.sh )
+          echo "$ROOT/bin" >> "$GITHUB_PATH"
+          echo "SBCL_HOME=$ROOT/lib/sbcl" >> "$GITHUB_ENV"
+          "$ROOT/bin/sbcl" --version
 
       - name: Fetch Clozure CL
         if: matrix.lisp == 'ccl64'
