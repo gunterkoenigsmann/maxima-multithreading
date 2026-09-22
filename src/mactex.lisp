@@ -60,6 +60,10 @@
 
 (defvar *tex-environment-default* '("$$" . "$$"))
 
+;; The column MYPRINC writes at.  A special variable, so that TEX1 can bind
+;; it: one column shared by all threads would move each other's line breaks.
+(defvar *tex-ccol* 1)
+
 (defmfun $get_tex_environment_default ()
   `((mlist) ,(car *tex-environment-default*) ,(cdr *tex-environment-default*)))
 
@@ -128,7 +132,7 @@
   (quote-chars sym "$%&_"))
 
 (defun tex1 (mexplabel &optional filename-or-stream) ;; mexplabel, and optional filename or stream
-  (prog (mexp  texport x y itsalabel need-to-close-texport)
+  (prog (mexp  texport x y itsalabel need-to-close-texport *tex-ccol*)
      (reset-ccol)
      ;; collect the file-name, if any, and open a port if needed
      (setq filename-or-stream (meval filename-or-stream))
@@ -215,7 +219,7 @@
 ;;-              that a value is all printed on one line (and not divided
 ;;-              by the crazy top level os routines)
 
-(let ((ccol 1))
+(symbol-macrolet ((ccol *tex-ccol*))
   (defun reset-ccol () (setq ccol 1))
 
   (defun myprinc (chstr &optional (texport nil))

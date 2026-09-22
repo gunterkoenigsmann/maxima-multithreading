@@ -67,6 +67,8 @@ Maxima 5.50-post change log
   the same fact, instead of whichever came first; it no longer deletes
   another context's assumption and keeps its own. Concurrent definite
   integrals over the same variable no longer come back unevaluated.
+* Give each tex() call its own output column, so concurrent calls no longer
+  move each other's line breaks.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
