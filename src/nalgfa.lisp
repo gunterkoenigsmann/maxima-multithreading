@@ -446,7 +446,8 @@
 
 
 
-  (let* ((vla (newvar p_a))  ; ensure varlist = ($a $b)
+  (let* ((varlist nil)       ; NEWVAR adds to VARLIST, so start empty
+	 (vla (newvar p_a))  ; ensure varlist = ($a $b)
 	 (vlf (newvar f_b))
 	 (varlist (cons (car vla) (remove (car vla) vlf)))
 	 (genvar)  ; start with a clean space of vars

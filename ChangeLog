@@ -69,6 +69,9 @@ Maxima 5.50-post change log
   integrals over the same variable no longer come back unevaluated.
 * Give each tex() call its own output column, so concurrent calls no longer
   move each other's line breaks.
+* primelmt() orders the variables it needs from an empty varlist, so a
+  second call in one evaluation, a call after ratvars() and concurrent
+  calls no longer fail with a Lisp error.
 
 * Preserve worker reservations and thread ownership when an asynchronous
   interrupt arrives during parallel startup. Use serial scheduling on ECL
