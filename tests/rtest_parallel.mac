@@ -592,3 +592,39 @@ sublist(parallel_makelist(cramer_check(i), i, 1, 24), lambda([k], k # 0));
 (kill(all),0);
 
 0$
+
+/* xthru combines terms over a common denominator through COMDENOM,
+   which gets each term's numerator and denominator factors back from
+   PRODND in the specials SN* and SD*.  Each call binds them.  Shared,
+   concurrent calls read each other's factors: measured on SBCL, 21 of
+   48 parallel xthru(1/(x+i) + 1/(x-i)) were mathematically wrong, e.g.
+   (x-1)/(x-2) for i = 2. */
+(kill(all), 0);
+0$
+
+/* No thread needed: a call leaves the global SN* and SD* alone. */
+(?sn\*: 'sn_marker, ?sd\*: 'sd_marker,
+ r: xthru(1/(x + 2) + 1/(x - 2)),
+ [r, ?sn\*, ?sd\*]);
+[(2*x)/((x - 2)*(x + 2)), sn_marker, sd_marker]$
+
+(?sn\*: false, ?sd\*: false, 0);
+0$
+
+/* In parallel, against serial, and each result against its input */
+(e(i) := 1/(x + i) + 1/(x - i) + i/(x^2 + i),
+ parallel_reset_counters(),
+ r: parallel_makelist((?sleep(0.002), xthru(e(i))), i, 1, 48),
+ is(r = makelist(xthru(e(i)), i, 1, 48)));
+true$
+
+(if parallel_threads_available()
+     then is(parallel_worker_items() > 0)
+     else is(parallel_worker_items() = 0));
+true$
+
+sublist(makelist(i, i, 1, 48), lambda([i], is(ratsimp(r[i] - e(i)) # 0)));
+[]$
+
+(kill(all), 0);
+0$

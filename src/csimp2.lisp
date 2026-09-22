@@ -744,7 +744,9 @@
 	(t e))) 
 
 (defun comdenom (l ind) 
-  (prog (n d) 
+  ;; PRODND returns a term's numerator and denominator factors in SN* and
+  ;; SD*, which are bound here so that concurrent calls keep their own.
+  (prog (n d sn* sd*)
      (prodnumden (car l))
      (setq n (m*l sn*) sn* nil)
      (setq d (m*l sd*) sd* nil)
