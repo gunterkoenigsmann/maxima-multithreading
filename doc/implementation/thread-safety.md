@@ -346,6 +346,27 @@ The same shape remains in `src/irinte.lisp` (`CHECKSIGNTM`'s
 its real arguments from four threads gave no wrong result in 13,600 calls,
 so it is left alone until something shows it matters. (measured)
 
+## 13. Variables of share packages written in Maxima
+
+A Maxima function that assigns a variable it has not made a `block`
+local writes that variable's global value cell, which every thread shares.
+Only bindings go through `MBIND`, and only those are private to a runner
+(sec. 3). Share packages written in Maxima do this on purpose to pass
+state between their functions. Some even declare the variables globally
+first, as `share/algebra/nusum.mac` does with `dva(%r); dva(p); dva(%cf);`.
+
+**Measured**: 48 parallel `nusum(k^2 + i, k, 1, n)` differed from serial
+in 4 runs of 4 on SBCL, in one run 46 of 48 items. For `i = 1` a correct
+`(n*(2*n^2+3*n+7))/6` became a rational function carrying a free
+parameter `%r50`. `nusuml` assigned `%r` (the term ratio) and `%cf` (the
+coefficients) as globals. Binding those two per runner as a probe made 4
+runs of 4 match serial, while binding `$RATVARS` (which `nusuml` also sets
+globally) changed nothing. The fix makes them locals of `nusuml`'s `block`
+(issue #66).
+
+The same issue lists `eigenvalues`, `eigenvectors`, `trigsimp` and
+`trigrat` as failing in parallel, with their causes not yet established.
+
 ## What this adds up to
 
 Three of these can be fixed by binding, and are: the per-computation

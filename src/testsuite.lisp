@@ -185,7 +185,8 @@
 	"rtest_parallel_fibonacci"
 	"rtest_parallel_summation"
 	"rtest_parallel_integrate"
-	"rtest_parallel_allroots"))
+	"rtest_parallel_allroots"
+	"rtest_parallel_share"))
 
 ;; The list of share testsuite files. As they are given without a path
 ;; this assumes that file_search_tests is set appropriately so that maxima

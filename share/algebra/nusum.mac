@@ -116,11 +116,14 @@ nusuml(%a,%n,%l,%h,l%):=
   if %a = 0 
     then [0]
     else 
+      /* %r and %cf are locals rather than the global variables dva
+	 declares above, so that concurrent nusum calls each keep their
+	 own term ratio and coefficients. */
       block([solvep:false,modulus:false,rv:ratvars,prodhack:true,
 	     ratfac:true,gcd:'spmod,algebraic:false,ratalgdenom:true,
 	     matrix_element_mult:"*",
 	     dispflag:false,maperror:false,%f:funmake('%f,[%n]),
-	     %f1:funmake('%f,[%n+1])],
+	     %f1:funmake('%f,[%n+1]),%r,%cf],
 	ratvars(%n),
 	if [] # errcatch
 	  (%cf:dimsum
