@@ -280,9 +280,36 @@ like, and consistent with reading them.
 
 ### What a synchronized table buys
 
-`clmacs.lisp` defines `%MAKE-HASH-TABLE`, which adds `:SYNCHRONIZED`
-where that is measured to work -- SBCL and ECL -- and nothing at all
-anywhere else. It is in `clmacs.lisp` and not beside
+`clmacs.lisp` defines `%MAKE-HASH-TABLE`, which adds `:SYNCHRONIZED` on
+SBCL and nothing at all anywhere else.
+
+**SBCL is the only lisp on that list, and that is a measured result
+rather than the starting assumption.** Each of the others was tried and
+each failed differently, which is the most useful thing this section
+has to report:
+
+| lisp | what happened |
+|---|---|
+| SBCL 2.2.9 | works; 160000 of 160000 kept, repeatedly |
+| CLISP 2.49.93 | rejects `:SYNCHRONIZED` outright |
+| CCL 1.12 | accepts `:SHARED`, and it buys nothing -- see below |
+| ECL 24.5.10 | accepts `:SYNCHRONIZED`, then cannot build Maxima with it |
+
+ECL fails while loading `init-cl`, which is where
+`*BUILTIN-SYMBOL-PROPS*` and `*VARIABLE-INITIAL-VALUES*` are filled,
+with `When acting on lock #<rwlock ...>, got an unexpected error`. ECL
+21.2.1 performs the same operations -- put, get, a nested lookup inside
+a write, and `MAPHASH` while writing -- without complaint, so this is a
+property of that release rather than of the code above it. Until
+somebody works out which, ECL gets a plain table.
+
+So **there is no portable synchronized hash table across the lisps
+Maxima supports.** A table two threads must write wants a lock, and this
+constructor is an optimisation on SBCL rather than the general answer.
+That is the finding to carry into any further threading work, and it is
+worth more than the constructor is.
+
+`%MAKE-HASH-TABLE` is in `clmacs.lisp` and not beside
 `%MAKE-LOCK` in `parallel.lisp` for a load-order reason: `globals.lisp`
 and `opr-util.lisp` create their tables in top-level `defvar`s, and both
 load long before `parallel.lisp`.

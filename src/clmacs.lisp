@@ -422,6 +422,37 @@
 ;;; neither rejects both and gets a plain table, which is the right
 ;;; answer where there are no threads to protect against.
 ;;;
+;;; SBCL is the only lisp on this list, and that is the measured result
+;;; rather than a starting assumption.  Each of the others was tried and
+;;; each failed differently:
+;;;
+;;;   CLISP rejects :SYNCHRONIZED outright.
+;;;
+;;;   CCL accepts :SHARED and it buys nothing.  Eight threads inserting
+;;;   20000 entries each into one EQUAL table on CCL 1.12 lost entries
+;;;   every time -- plain 2 and 4 of 160000, :SHARED 4 and 2, :LOCK-FREE
+;;;   5 and 5, both together 1 and 7 -- with nothing signalled.  Checked
+;;;   by looking every key up afterwards and by walking the table, not
+;;;   by HASH-TABLE-COUNT: the entries really are gone.  The same run
+;;;   with a lock held around the write lost none, five trials of five.
+;;;   So CCL needs a lock, and offering it a keyword instead would buy
+;;;   false confidence: a table that needs a lock must not be made to
+;;;   look like one that does not.
+;;;
+;;;   ECL 24.5.10 accepts :SYNCHRONIZED and then fails to build Maxima
+;;;   with it, "When acting on lock #<rwlock ...>, got an unexpected
+;;;   error" while loading init-cl, which is where *BUILTIN-SYMBOL-PROPS*
+;;;   and *VARIABLE-INITIAL-VALUES* are filled.  ECL 21.2.1 performs the
+;;;   same operations -- put, get, a nested lookup inside a write, and
+;;;   MAPHASH while writing -- without complaint, so this is a property
+;;;   of that release and not of the code above it.  Until somebody
+;;;   works out which, ECL gets a plain table.
+;;;
+;;; What this adds up to is worth stating plainly: there is no portable
+;;; synchronized hash table across the lisps Maxima supports.  A table
+;;; two threads must write wants a lock, and this constructor is an
+;;; optimisation on SBCL rather than the general answer.
+;;;
 ;;; The probe proves the keyword is accepted, not that it is honoured.
 ;;; What checks the second half is CHECK-SYNCHRONIZED-HASH-TABLE in
 ;;; lisp-utils/thread-environment-check.lisp, which make check runs on
@@ -438,6 +469,13 @@
 ;;; WITH-HASH-TABLE-ITERATOR -- still wants a lock around both halves,
 ;;; as *TEMP-FILES-LIST* has in plot.lisp.
 
+(defparameter *synchronized-hash-table-candidates*
+  #+sbcl '((:synchronized t))
+  #-sbcl '()
+  "Argument lists worth trying, in order.  Empty on a lisp where a
+synchronized table has been measured to be absent, useless or broken;
+see the commentary above before adding one.")
+
 (defparameter *synchronized-hash-table-arguments*
   ;; SYMBOL-FUNCTION, not #', and it is load-bearing.  CLISP's compiler
   ;; open-codes a call through #'MAKE-HASH-TABLE and drops the keyword
@@ -447,18 +485,7 @@
   ;; CLISP 2.49.93 and SYMBOL-FUNCTION returns NIL; interpreted, both
   ;; return NIL.  A funcall the compiler cannot resolve at compile time
   ;; reaches the real argument-list check.
-  ;;
-  ;; CCL's :SHARED is deliberately not on this list, though CCL accepts
-  ;; it.  Measured, eight threads inserting 20000 entries each into one
-  ;; EQUAL table on CCL 1.12: a plain table lost 2 and 4 of 160000, a
-  ;; :SHARED table 4 and 2, a :LOCK-FREE table 5 and 5, and both
-  ;; together 1 and 7.  Verified by looking every key up afterwards, not
-  ;; by HASH-TABLE-COUNT alone: the entries really are gone.  The same
-  ;; run with an explicit lock around the write lost none, five trials
-  ;; of five.  So on CCL the keyword buys no safety, and offering it
-  ;; would buy false confidence instead -- a table that needs a lock
-  ;; should not look like one that does not.
-  (loop for candidate in '((:synchronized t))  ; SBCL, ECL
+  (loop for candidate in *synchronized-hash-table-candidates*
         when (ignore-errors
                (apply (symbol-function 'make-hash-table) candidate) t)
           return candidate)
