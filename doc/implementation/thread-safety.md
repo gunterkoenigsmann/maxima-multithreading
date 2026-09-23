@@ -203,25 +203,177 @@ evidence of anything**.
 
 ## 9. Global hash tables
 
-Most of Maxima's global hash tables are filled once and read thereafter
-(`*FLONUM-OP*`, `*BIG-FLOAT-OP*`, `*OPR-TABLE*`, `*RUNNING-ERROR-OP*`,
-`*COLOR-TABLE*`, the `intl` tables, `*BUILTIN-SYMBOL-PROPS*` and
-`*BUILTIN-SYMBOL-VALUES*`). Those are not a threading problem.
+`src/` has 35 `make-hash-table` calls, one of them commented out. 16 are
+top-level, in a `defvar` or `defparameter`; the rest are locals inside a
+function or a macro expansion and belong to one call.
 
-The ones written **at run time** are:
+This section was originally written from the call sites. It has since
+been **measured**, by `lisp-utils/hash-table-survey.lisp`, which watches
+every symbol in the image whose value is a hash table -- rather than a
+list of names, so a table nobody has thought of shows up by itself --
+records each table's key set and the value under each key, runs a
+workload twice and reports what moved. Keys and not counts, because
+replacing the value under a key already present leaves the count where
+it was.
+
+Two controls, because two unrelated faults both produce an empty report.
+Every workload form is checked for having evaluated: a workload that
+threw on its first line would watch a table nobody touched and call all
+of them clean. And `*OPR-TABLE*`, which the workload writes by calling
+`infix()`, must appear in the result, so a snapshot looking in the wrong
+place says so instead of passing.
+
+The image holds **28** global hash tables, which is more than `src/`
+creates: `defsystem`, `cl-info`, `intl` and `f2cl-lib` contribute the
+rest.
+
+### Written while a computation runs
+
+**Measured**, on SBCL, by the survey:
 
 | table | where | written by |
 |---|---|---|
+| `*OPR-TABLE*` | `src/opr-util.lisp` | `PUTOPR`, reached from `infix()` and friends |
+| `*DIRECTORY-CACHE*` | `src/mload.lisp` | every path search; also `REMHASH` on eviction |
+| `*TEMP-FILES-LIST*` | `src/globals.lisp` | `PLOT-TEMP-FILE0`, on every plot |
 | `*LAMBDA-EXPR-FUNS*` | `src/mlisp.lisp` | `LAMBDA-EXPR-FUN`, on every miss |
-| `*DIRECTORY-CACHE*` | `src/mload.lisp` | directory lookups |
-| `*TEMP-FILES-LIST*` | `src/plot.lisp` | plotting |
+| `CL-INFO::*INFO-TABLES*` | `src/cl-info.lisp` | `ENSURE-INFO-TABLES`, when a documentation index loads |
 
-**`*LAMBDA-EXPR-FUNS*` is the interesting one** and is worth fixing
-regardless of threads. It memoises compiled functions for Lisp lambda
-expressions applied by `MAPPLY1`. It is a plain, unsynchronised hash
-table, and its eviction branch runs `WITH-HASH-TABLE-ITERATOR`, `RANDOM`
-on one shared random state, and `REMHASH` -- a combination the standard
-does not define under concurrent modification.
+This **corrects** an earlier reading of this section, which listed
+`*OPR-TABLE*` among the tables "filled once and read thereafter".
+`infix()` is a Maxima-level command, so it writes the table whenever a
+user calls it.
+
+`CL-INFO::*INFO-TABLES*` was not in the first inventory at all. Loading
+a share package does not touch it, but loading a documentation index
+does: **measured**, `load("logic-index")` took it from 1 entry to 2.
+`describe()` maps over the same table, so this is the iterate-while-
+insert case and not merely a lost entry.
+
+### Written only as files load
+
+`*VARIABLE-INITIAL-VALUES*`, `*FLONUM-OP*`, `*BIG-FLOAT-OP*`,
+`*RUNNING-ERROR-OP*`, `*COLOR-TABLE*`,
+`*ATAN2-EXTENDED-REAL-HASHTABLE*`, `*BUILTIN-SYMBOL-PROPS*`,
+`*BUILTIN-SYMBOL-VALUES*`, `CL-INFO::*HTML-INDEX*`, the `intl` tables
+and `defsystem`'s own.
+
+**Measured** unchanged -- same key set, same value under every key --
+across two passes of a workload of integration, factoring, solving,
+Taylor series, bigfloat arithmetic, assume/sign/forget, matrix
+arithmetic, `makelist`, `parallel_makelist` and `describe`.
+
+That is a **conditional** answer, not a clean bill of health, and the
+condition is that nothing loads a file from a worker, which is #41.
+**Measured**: `load("f90")` adds an entry to `*VARIABLE-INITIAL-VALUES*`
+at run time, because a share file full of `defmvar` forms writes one per
+variable. So the cost of allowing `load()` inside a parallel body is not
+only the loader; it is every table any loaded file fills, at once.
+
+### Per-call locals
+
+`factor.lisp`, `numth.lisp` (twice), `mload.lisp` (twice),
+`clmacs.lisp`, `float.lisp` inside a macro expansion, `sublis.lisp`
+bound to a special that is always `LET`-bound. **Measured** absent from
+the survey's roll, which is what a table with no global value cell looks
+like, and consistent with reading them.
+
+### What a synchronized table buys
+
+`clmacs.lisp` defines `%MAKE-HASH-TABLE`, which adds whichever argument
+this lisp understands -- `:SYNCHRONIZED` on SBCL and ECL, `:SHARED` on
+CCL, and nothing at all on a lisp that rejects both, which is the right
+answer where there are no threads. It is in `clmacs.lisp` and not beside
+`%MAKE-LOCK` in `parallel.lisp` for a load-order reason: `globals.lisp`
+and `opr-util.lisp` create their tables in top-level `defvar`s, and both
+load long before `parallel.lisp`.
+
+It matters. **Measured** on SBCL 2.2.9, eight threads inserting 20000
+entries each into one `EQUAL` table:
+
+| table | entries kept of 160000 | threads that errored |
+|---|---|---|
+| plain, trial 1 | 869 | 8 of 8 |
+| plain, trial 2 | 218 | 8 of 8 |
+| plain, trial 3 | 328 | 8 of 8 |
+| synchronized, 3 trials | 160000 each | none |
+
+The error is `Unsafe concurrent operations on #<HASH-TABLE ...>
+detected`, so on SBCL this is loud. Do not read that as a guarantee.
+The same experiment on **CCL 1.12** kept 159998 of 160000 and raised
+nothing: two entries gone, no error, no warning. A lisp that does not
+police its own tables loses data quietly, and quietly is worse.
+
+`CHECK-SYNCHRONIZED-HASH-TABLE` in
+`lisp-utils/thread-environment-check.lisp` runs that experiment under
+`make check` on every lisp that has threads, because the constructor
+probes only that the keyword was *accepted* and not that it was acted
+on. Its own controls: the same inserts run serially must all survive, so
+a loss belongs to the concurrency and not to the counting; and the
+workers meet at a barrier before the first insert, so a scheduler free
+to run them one after another cannot produce a false pass. The plain
+table is written the same way and reported but never asserted on,
+because how badly it breaks is a property of the lisp. **Measured** on
+the same experiment under `make check`: SBCL 2.2.9 kept 11201 of 160000
+and signalled in all eight threads; **CCL 1.12 kept 159998 and signalled
+nothing**. CCL is the warning here, not the reassurance -- it lost two
+entries in silence, which is the failure mode that reaches a user as a
+wrong answer rather than as a crash. An assertion that the control must
+lose entries would be answered by those two, which is too close to none
+to depend on.
+
+### What it does not buy, and what the cost is
+
+Two things it does not buy:
+
+- Synchronization is per operation, not per iteration. A table mapped
+  over while another thread inserts -- `WITH-HASH-TABLE-ITERATOR`, the
+  eviction pattern in `MAPPLY1`, the searches in `cl-info` -- is still
+  undefined. Those want a lock over both halves, as `*TEMP-FILES-LIST*`
+  has in `plot.lisp`, or a table per thread, as `*LAMBDA-EXPR-FUNS*`
+  has.
+- It is not a substitute for asking which bucket a table is in. A
+  synchronized table full of state two threads disagree about is a
+  correct data structure holding a wrong answer.
+
+What it does **not** cost is speed. **Measured** on SBCL 2.2.9: a
+synchronized `gethash` is about five times a plain one, 10ns against
+51ns over 10^7 lookups, and `puthash` 16ns against 48ns. But Maxima does
+not spend its time in hash lookups. `*FLONUM-OP*` is the hottest global
+table and is consulted once per float function evaluation, so
+`makelist(sin(float(i))+cos(float(i)), i, 1, 60000)` does some 120000
+lookups: 41ns each is 5ms against a 320ms workload, 1.5%.
+
+Below the noise, and the control is what says so. A/B in one image over
+15 interleaved trials, swapping the table the global points at:
+
+| arm | min | median |
+|---|---|---|
+| plain A | 0.320s | 0.328s |
+| plain B (control) | 0.304s | 0.348s |
+| synchronized | 0.312s | 0.360s |
+
+The control -- two identical plain tables raced against each other --
+moves by -5.0% on the minimum and +6.1% on the median. The synchronized
+arm moves by -2.5% and +9.8%. The effect is inside the noise floor of
+the machine, and on the minimum estimator the synchronized table was the
+faster of the two. One workload on one lisp: a table read in a genuinely
+tight inner loop would show the difference, and Maxima has none.
+
+So every global table in `src/` that two threads could reach now goes
+through `%MAKE-HASH-TABLE`, rather than only the ones measured moving
+today. `*LAMBDA-EXPR-FUNS*` and `*TEMP-FILES-LIST*` stay plain on
+purpose: the first is rebound per thread by
+`WITH-THREAD-LOCAL-ENVIRONMENT` and the second is guarded by a lock that
+also covers the iteration, and in both cases a synchronized table would
+cover strictly less. `intl`'s tables stay plain because `intl.lisp`
+loads before `clmacs.lisp`.
+
+**`*LAMBDA-EXPR-FUNS*` is worth fixing regardless of threads.** It
+memoises compiled functions for the Lisp lambda expressions applied by
+`MAPPLY1`, and its eviction branch runs `WITH-HASH-TABLE-ITERATOR`,
+`RANDOM` on one shared random state, and `REMHASH` -- a combination the
+standard does not define under concurrent modification.
 
 **Measured**, four threads each applying 400 distinct expressions:
 
@@ -239,9 +391,8 @@ exceeded the limit its own docstring says it must not grow past.
 **Reachability**: `MAPPLY1` uses this branch only for a **Lisp** lambda;
 Maxima's own `lambda([x], ...)` is `((lambda) ...)` and goes to
 `MLAMBDA` instead. So this is a real defect on a path ordinary Maxima
-code does not currently reach -- latent rather than live. The fix is one
-keyword (`:synchronized t`, which SBCL and CCL both support) or a lock
-around the three operations.
+code does not currently reach -- latent rather than live. A table per
+thread fixes both halves of it, and is what the groundwork does.
 
 ## 10. Streams
 

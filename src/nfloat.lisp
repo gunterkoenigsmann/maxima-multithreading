@@ -187,7 +187,7 @@
 
 
 ;; For a similar hashtable mechanism, see trig.lisp.
-(defvar *running-error-op* (make-hash-table :size 16)
+(defvar *running-error-op* (maxima::%make-hash-table :size 16)
   "Hash table mapping a maxima function to a corresponding Lisp
   function to evaluate the maxima function numerically using a running error.")
 

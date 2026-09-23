@@ -16,6 +16,13 @@ make check runs two additional tests for every configured Lisp:
     about whether that Lisp has threads: only these three backends are
     implemented in this checker.  The portable binding test still runs.
 
+    The race mode also checks %MAKE-HASH-TABLE, under the same gate: the
+    claim that it returns a table several threads may write only means
+    something where there are threads.  clmacs.lisp picks the arguments
+    by probing which keyword MAKE-HASH-TABLE accepts, which establishes
+    that the keyword was taken and not that it was acted on, so eight
+    threads insert 20000 entries each and the entries are counted.
+
 The race uses two workers, each writing SIGN and checking its own answer.
 Two semaphore rendezvous per round ensure both writes precede either read
 and both reads precede the next write.  Over 2,000 rounds the unbound
@@ -25,6 +32,17 @@ a false pass.  Each worker counts privately.  Rendezvous have a ten-second
 timeout, and worker errors are reported in the parent.  The unbound control
 deliberately overwrites global SIGN; run the race in a fresh batch image,
 as the driver does, rather than alongside an interactive computation.
+
+The hash-table check has two controls of its own.  The same inserts run
+serially must all survive, so a loss in the threaded run belongs to the
+concurrency rather than to the loop or the counting.  And the workers
+meet at a barrier before the first insert, so a scheduler free to run
+them one after another cannot give a false pass.  A plain table is
+written the same way and reported but never asserted on: how badly it
+breaks is a property of the Lisp.  Measured here, SBCL 2.2.9 kept 11201
+of 160000 and signalled in all eight threads; CCL 1.12 kept 159998 and
+signalled nothing.  Two lost entries is too close to none to assert on,
+and is also why the plain table is not left in place.
 
 ECL 21.2.1 has no timeout argument on WAIT-ON-SEMAPHORE. Its adapter polls
 TRY-GET-SEMAPHORE with a deadline and a short sleep. The portable assertions

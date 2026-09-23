@@ -409,6 +409,52 @@
     (or not-dim1 (setf (gethash 'dim1 table) t))
     table))
 
+;;; A hash table two threads may reach.
+;;;
+;;; This lives here rather than beside %MAKE-LOCK in parallel.lisp
+;;; because of load order: parallel.lisp is in the i-o module, and the
+;;; tables that need this are created by top-level DEFVARs in globals,
+;;; opr-util and mload, all of which load long before it.  A constructor
+;;; defined in parallel.lisp could not be called by any of them.
+;;;
+;;; The argument list is probed rather than selected by #+: SBCL and ECL
+;;; spell it :SYNCHRONIZED, CCL spells it :SHARED, and a lisp that has
+;;; neither rejects both and gets a plain table, which is the right
+;;; answer where there are no threads to protect against.
+;;;
+;;; The probe proves the keyword is accepted, not that it is honoured.
+;;; What checks the second half is CHECK-SYNCHRONIZED-HASH-TABLE in
+;;; lisp-utils/thread-environment-check.lisp, which make check runs on
+;;; every lisp that has threads: eight threads insert into one table and
+;;; the entries are counted.  Measured on SBCL 2.2.9, a plain EQUAL
+;;; table given 8 x 20000 inserts kept 218, 328 and 869 of 160000 over
+;;; three trials and signalled "Unsafe concurrent operations ...
+;;; detected" in every thread; the same run through %MAKE-HASH-TABLE
+;;; kept all 160000 with no error, three trials out of three.
+;;;
+;;; What it does not buy is an atomic read-modify-write, and it does not
+;;; make iteration safe against a concurrent insert.  A table that is
+;;; mapped over while another thread writes it -- the eviction pattern,
+;;; WITH-HASH-TABLE-ITERATOR -- still wants a lock around both halves,
+;;; as *TEMP-FILES-LIST* has in plot.lisp.
+
+(defparameter *synchronized-hash-table-arguments*
+  (loop for candidate in '((:synchronized t)   ; SBCL, ECL
+                           (:shared t))        ; CCL
+        when (ignore-errors (apply #'make-hash-table candidate) t)
+          return candidate)
+  "Arguments that make MAKE-HASH-TABLE return a table safe to write from
+more than one thread, or NIL on a lisp that offers no such table.")
+
+(defun %make-hash-table (&rest arguments)
+  "MAKE-HASH-TABLE for a table that outlives the call that created it.
+
+ARGUMENTS come first, so a caller that passes :SYNCHRONIZED explicitly
+overrides the default rather than fighting it: a duplicate keyword takes
+its leftmost value."
+  (apply #'make-hash-table
+         (append arguments *synchronized-hash-table-arguments*)))
+
 ;;; exp is shadowed to save trouble for other packages--its declared special
 (deff exp #'cl:exp)
 

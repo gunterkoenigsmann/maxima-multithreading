@@ -234,6 +234,131 @@ leave every thread writing one hash table, which is the whole problem."
   (format stream "~&  race skipped: no thread support known for this lisp~%")
   :skipped)
 
+;;; ------------------------------------------------------------------
+;;; Does %MAKE-HASH-TABLE give back a table more than one thread may
+;;; write?
+;;;
+;;; clmacs.lisp chooses the arguments by probing which keyword
+;;; MAKE-HASH-TABLE accepts on this lisp.  That establishes that the
+;;; keyword was taken, not that it was acted on, and those are different
+;;; claims.  This one writes the table from every thread and counts what
+;;; survived.
+
+#+(or sb-thread (and ccl openmcl-native-threads) (and ecl threads))
+(defun check-synchronized-hash-table (&optional (stream *debug-io*)
+                                                (workers 8)
+                                                (per-worker 20000))
+  "Write one table from WORKERS threads at once and count what survived.
+
+Two controls, because a table that loses nothing can mean either that it
+is safe or that the experiment never took place:
+
+  - the same number of inserts, run serially, must all survive.  A loss
+    in the threaded run then belongs to the concurrency rather than to
+    the loop or the counting here.
+
+  - the workers meet at a barrier before the first insert, so they are
+    known to have overlapped.  Without it a scheduler free to run them
+    one after another would hand back a clean table and prove nothing.
+
+The plain table is written the same way and reported, never asserted on,
+because how badly it breaks is a property of the lisp rather than of
+this code.  Measured on the same 8 x 20000 inserts: SBCL 2.2.9 kept
+11201 of 160000 and signalled in all eight threads, CCL 1.12 kept 159998
+and signalled nothing at all.  An assertion that the control must lose
+entries would be answered by two entries on CCL, which is too close to
+none to rely on."
+  (let ((expected (* workers per-worker)))
+    (labels
+        ((spawn (function)
+           #+sb-thread (sb-thread:make-thread function)
+           #+(and ccl openmcl-native-threads (not sb-thread))
+           (ccl:process-run-function "hashcheck" function)
+           #+(and ecl threads (not sb-thread) (not ccl))
+           (mp:process-run-function "hashcheck" function))
+         (join (thread)
+           #+sb-thread (sb-thread:join-thread thread)
+           #+(and ccl openmcl-native-threads (not sb-thread))
+           (ccl:join-process thread)
+           #+(and ecl threads (not sb-thread) (not ccl))
+           (mp:process-join thread))
+         (hammer (table)
+           (let ((lock (%make-lock "threadcheck hash table"))
+                 (arrived 0)
+                 (results (make-array workers :initial-element nil))
+                 (threads '()))
+             (flet ((barrier ()
+                      (%with-lock (lock) (incf arrived))
+                      (let* ((units internal-time-units-per-second)
+                             (deadline (+ (get-internal-real-time)
+                                          (* 10 units))))
+                        (loop until (>= (%with-lock (lock) arrived) workers)
+                              do (when (> (get-internal-real-time) deadline)
+                                   (error "thread-environment-check: ~
+hash-table barrier timed out"))
+                                 (sleep 0.001)))))
+               (unwind-protect
+                    (loop for index below workers
+                          for function = (let ((index index))
+                                           (lambda ()
+                                             (setf (aref results index)
+                                                   (handler-case
+                                                       (progn
+                                                         (barrier)
+                                                         (dotimes (i per-worker)
+                                                           (setf (gethash
+                                                                  (cons index i)
+                                                                  table)
+                                                                 i))
+                                                         :ok)
+                                                     (error (e)
+                                                       (princ-to-string e))))))
+                          do (push (spawn function) threads))
+                 (mapc #'join threads)))
+             (list (hash-table-count table)
+                   (remove :ok (coerce results 'list))))))
+      (let* ((serial (let ((table (make-hash-table :test #'equal)))
+                       (dotimes (index workers)
+                         (dotimes (i per-worker)
+                           (setf (gethash (cons index i) table) i)))
+                       (hash-table-count table)))
+             (safe (hammer (%make-hash-table :test #'equal)))
+             (plain (hammer (make-hash-table :test #'equal))))
+        (format stream "~&  hash table: serial control kept ~D of ~D~%"
+                serial expected)
+        (format stream "~&  hash table: %make-hash-table kept ~D of ~D, ~
+~D worker error~:P~%"
+                (first safe) expected (length (second safe)))
+        (format stream "~&  hash table: plain kept ~D of ~D, ~
+~D worker error~:P~@[ (~A)~]~%"
+                (first plain) expected (length (second plain))
+                (first (second plain)))
+        (when *synchronized-hash-table-arguments*
+          (format stream "~&  hash table: synchronized by ~S~%"
+                  *synchronized-hash-table-arguments*))
+        (cond
+          ((/= serial expected)
+           (format stream "~&  hash table: CONTROL FAILED, the serial run ~
+lost entries~%")
+           nil)
+          ((second safe)
+           (format stream "~&  hash table: FAILED, a worker errored: ~A~%"
+                   (first (second safe)))
+           nil)
+          ((/= (first safe) expected)
+           (format stream "~&  hash table: FAILED, ~D entries lost~%"
+                   (- expected (first safe)))
+           nil)
+          (t t))))))
+
+#-(or sb-thread (and ccl openmcl-native-threads) (and ecl threads))
+(defun check-synchronized-hash-table (&optional (stream *debug-io*)
+                                                workers per-worker)
+  (declare (ignore workers per-worker))
+  (format stream "~&  hash table skipped: no thread support known for ~
+this lisp~%")
+  :skipped)
+
 (defun check-thread-environment (&optional (stream *debug-io*))
   "Returns T if the environment isolates everything it claims to."
   (let* ((leaked (check-bindings stream))
@@ -241,12 +366,14 @@ leave every thread writing one hash table, which is the whole problem."
          (cache (check-fresh-lambda-cache stream))
          (genvar (check-fresh-genvar stream))
          (raced (check-race stream))
+         (hashed (check-synchronized-hash-table stream))
          (props (check-depended-on-properties stream))
          (pool (zerop (check-rule-symbol-pool :stream stream)))
          ;; RACED is NIL only for a race that actually failed: a lisp
          ;; without threads reports :SKIPPED, which is not a failure.
-         (ok (and (null leaked) fresh cache genvar (not (null raced)) props
-                  pool)))
+         ;; HASHED reads the same way.
+         (ok (and (null leaked) fresh cache genvar (not (null raced))
+                  (not (null hashed)) props pool)))
     (format stream "~&thread-environment-check: ~:[FAILED~;ok~]~%" ok)
     ok))
 

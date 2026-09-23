@@ -93,6 +93,10 @@
     (declare (ignore lock))
     `(progn ,@body)))
 
+;;; %MAKE-HASH-TABLE, the other half of this set of primitives, is in
+;;; clmacs.lisp rather than here: globals.lisp and opr-util.lisp create
+;;; tables in top-level DEFVARs and both load long before this file.
+
 ;;; ------------------------------------------------------------------
 ;;; How many cores are there?
 ;;;
