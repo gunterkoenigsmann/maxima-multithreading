@@ -447,8 +447,18 @@
   ;; CLISP 2.49.93 and SYMBOL-FUNCTION returns NIL; interpreted, both
   ;; return NIL.  A funcall the compiler cannot resolve at compile time
   ;; reaches the real argument-list check.
-  (loop for candidate in '((:synchronized t)   ; SBCL, ECL
-                           (:shared t))        ; CCL
+  ;;
+  ;; CCL's :SHARED is deliberately not on this list, though CCL accepts
+  ;; it.  Measured, eight threads inserting 20000 entries each into one
+  ;; EQUAL table on CCL 1.12: a plain table lost 2 and 4 of 160000, a
+  ;; :SHARED table 4 and 2, a :LOCK-FREE table 5 and 5, and both
+  ;; together 1 and 7.  Verified by looking every key up afterwards, not
+  ;; by HASH-TABLE-COUNT alone: the entries really are gone.  The same
+  ;; run with an explicit lock around the write lost none, five trials
+  ;; of five.  So on CCL the keyword buys no safety, and offering it
+  ;; would buy false confidence instead -- a table that needs a lock
+  ;; should not look like one that does not.
+  (loop for candidate in '((:synchronized t))  ; SBCL, ECL
         when (ignore-errors
                (apply (symbol-function 'make-hash-table) candidate) t)
           return candidate)

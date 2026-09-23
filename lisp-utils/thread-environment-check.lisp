@@ -341,6 +341,16 @@ hash-table barrier timed out"))
            (format stream "~&  hash table: CONTROL FAILED, the serial run ~
 lost entries~%")
            nil)
+          ((null *synchronized-hash-table-arguments*)
+           ;; This lisp offers no table that is safe to write from two
+           ;; threads, so there is no claim here to falsify.  Report what
+           ;; the run measured and pass: failing would only say again
+           ;; what the constructor already says.  CCL is the reason this
+           ;; branch exists -- see the comment in clmacs.lisp.
+           (format stream "~&  hash table: no synchronized table on this ~
+lisp; ~D of ~D lost,~%    which is measured rather than asserted on.~%"
+                   (- expected (first safe)) expected)
+           t)
           ((second safe)
            (format stream "~&  hash table: FAILED, a worker errored: ~A~%"
                    (first (second safe)))

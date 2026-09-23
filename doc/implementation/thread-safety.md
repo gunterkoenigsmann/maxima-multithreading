@@ -280,10 +280,9 @@ like, and consistent with reading them.
 
 ### What a synchronized table buys
 
-`clmacs.lisp` defines `%MAKE-HASH-TABLE`, which adds whichever argument
-this lisp understands -- `:SYNCHRONIZED` on SBCL and ECL, `:SHARED` on
-CCL, and nothing at all on a lisp that rejects both, which is the right
-answer where there are no threads. It is in `clmacs.lisp` and not beside
+`clmacs.lisp` defines `%MAKE-HASH-TABLE`, which adds `:SYNCHRONIZED`
+where that is measured to work -- SBCL and ECL -- and nothing at all
+anywhere else. It is in `clmacs.lisp` and not beside
 `%MAKE-LOCK` in `parallel.lisp` for a load-order reason: `globals.lisp`
 and `opr-util.lisp` create their tables in top-level `defvar`s, and both
 load long before `parallel.lisp`.
@@ -303,6 +302,35 @@ detected`, so on SBCL this is loud. Do not read that as a guarantee.
 The same experiment on **CCL 1.12** kept 159998 of 160000 and raised
 nothing: two entries gone, no error, no warning. A lisp that does not
 police its own tables loses data quietly, and quietly is worse.
+
+### CCL has no synchronized table, and that is the larger finding
+
+CCL accepts `:SHARED`, so the first version of this work took it and the
+check passed. It passed by luck; run again, it failed. The measurement
+underneath says why -- eight threads, 20000 `EQUAL` inserts each,
+CCL 1.12, entries **lost** of 160000:
+
+| table | trials |
+|---|---|
+| plain | 2, 4 |
+| `:shared t` | 4, 2 |
+| `:lock-free t` | 5, 5 |
+| `:shared t :lock-free t` | 1, 7 |
+| plain, **lock held around the write** | 0, 0 |
+| `:shared t`, **lock held around the write** | 0, 0, 0 |
+
+Checked by looking up all 160000 keys afterwards and by walking the
+table, not by `HASH-TABLE-COUNT` alone -- the entries really are gone,
+and nothing is signalled for any of them. So on CCL no table option
+buys safety and only a lock does, and `%MAKE-HASH-TABLE` returns a
+plain table there: a table that needs a lock must not be made to look
+like one that does not.
+
+Two things follow. Maxima's shared tables are unprotected on CCL
+whatever this section does, so CCL wants a lock per table rather than a
+constructor. And the loss is small and silent -- single digits in
+160000, no condition raised -- which is precisely the shape that
+survives a test suite and reaches a user as one wrong answer.
 
 `CHECK-SYNCHRONIZED-HASH-TABLE` in
 `lisp-utils/thread-environment-check.lisp` runs that experiment under

@@ -41,8 +41,14 @@ them one after another cannot give a false pass.  A plain table is
 written the same way and reported but never asserted on: how badly it
 breaks is a property of the Lisp.  Measured here, SBCL 2.2.9 kept 11201
 of 160000 and signalled in all eight threads; CCL 1.12 kept 159998 and
-signalled nothing.  Two lost entries is too close to none to assert on,
-and is also why the plain table is not left in place.
+signalled nothing.  Two lost entries is too close to none to assert on.
+
+Where %MAKE-HASH-TABLE has no synchronized table to offer, the check
+reports what the run lost and passes, because there is no claim to
+falsify.  CCL is that case, and it is not a gap in the check: no table
+option there is safe.  Plain, :shared, :lock-free and both together
+each lost entries; only a lock around the write did not.  The numbers
+are in doc/implementation/thread-safety.md.
 
 ECL 21.2.1 has no timeout argument on WAIT-ON-SEMAPHORE. Its adapter polls
 TRY-GET-SEMAPHORE with a deadline and a short sleep. The portable assertions
