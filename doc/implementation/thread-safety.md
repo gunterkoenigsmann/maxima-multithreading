@@ -357,8 +357,32 @@ The control -- two identical plain tables raced against each other --
 moves by -5.0% on the minimum and +6.1% on the median. The synchronized
 arm moves by -2.5% and +9.8%. The effect is inside the noise floor of
 the machine, and on the minimum estimator the synchronized table was the
-faster of the two. One workload on one lisp: a table read in a genuinely
-tight inner loop would show the difference, and Maxima has none.
+faster of the two.
+
+A 320ms workload has a +/- 6% noise floor, which is too coarse to see a
+1.5% effect either way, so the same question was put to the benchmark
+the Maxima team uses: a full `run_testsuite()`, 17671 tests and roughly
+98 seconds a run. Four rounds, ordered base / converted / base, so the
+two base runs measure the noise at that scale:
+
+| arm | n | min | median | mean |
+|---|---|---|---|---|
+| base A | 4 | 96.43s | 98.59s | 99.27s |
+| base B (control) | 4 | 97.21s | 98.07s | 98.14s |
+| converted | 4 | 96.95s | 98.33s | 98.04s |
+
+The control moves by +0.8% on the minimum and -0.5% on the median --
+two builds of identical source. The converted tree moves by +0.5% and
++0.0% against all eight base runs. The difference is smaller than the
+spread between two runs of the same code, at a scale where 1.5% would
+have been visible.
+
+All twelve runs reported **1 test failed out of 17671**, the same
+`rtest3` problem 222 in every arm, base included. So the conversion is
+behaviour-neutral across the suite as well as free.
+
+One benchmark on one lisp: a table read in a genuinely tight inner loop
+would show the difference, and Maxima has none.
 
 So every global table in `src/` that two threads could reach now goes
 through `%MAKE-HASH-TABLE`, rather than only the ones measured moving
