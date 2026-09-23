@@ -439,9 +439,18 @@
 ;;; as *TEMP-FILES-LIST* has in plot.lisp.
 
 (defparameter *synchronized-hash-table-arguments*
+  ;; SYMBOL-FUNCTION, not #', and it is load-bearing.  CLISP's compiler
+  ;; open-codes a call through #'MAKE-HASH-TABLE and drops the keyword
+  ;; check with it, so the probe saw :SYNCHRONIZED accepted, took it,
+  ;; and the next file to build a table died on the keyword CLISP does
+  ;; not have.  Measured: compiled, #' returns (:SYNCHRONIZED T) on
+  ;; CLISP 2.49.93 and SYMBOL-FUNCTION returns NIL; interpreted, both
+  ;; return NIL.  A funcall the compiler cannot resolve at compile time
+  ;; reaches the real argument-list check.
   (loop for candidate in '((:synchronized t)   ; SBCL, ECL
                            (:shared t))        ; CCL
-        when (ignore-errors (apply #'make-hash-table candidate) t)
+        when (ignore-errors
+               (apply (symbol-function 'make-hash-table) candidate) t)
           return candidate)
   "Arguments that make MAKE-HASH-TABLE return a table safe to write from
 more than one thread, or NIL on a lisp that offers no such table.")
