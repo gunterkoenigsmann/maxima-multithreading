@@ -409,6 +409,98 @@
     (or not-dim1 (setf (gethash 'dim1 table) t))
     table))
 
+;;; A hash table two threads may reach.
+;;;
+;;; This lives here rather than beside %MAKE-LOCK in parallel.lisp
+;;; because of load order: parallel.lisp is in the i-o module, and the
+;;; tables that need this are created by top-level DEFVARs in globals,
+;;; opr-util and mload, all of which load long before it.  A constructor
+;;; defined in parallel.lisp could not be called by any of them.
+;;;
+;;; The argument list is probed rather than selected by #+: SBCL and ECL
+;;; spell it :SYNCHRONIZED, CCL spells it :SHARED, and a lisp that has
+;;; neither rejects both and gets a plain table, which is the right
+;;; answer where there are no threads to protect against.
+;;;
+;;; SBCL is the only lisp on this list, and that is the measured result
+;;; rather than a starting assumption.  Each of the others was tried and
+;;; each failed differently:
+;;;
+;;;   CLISP rejects :SYNCHRONIZED outright.
+;;;
+;;;   CCL accepts :SHARED and it buys nothing.  Eight threads inserting
+;;;   20000 entries each into one EQUAL table on CCL 1.12 lost entries
+;;;   every time -- plain 2 and 4 of 160000, :SHARED 4 and 2, :LOCK-FREE
+;;;   5 and 5, both together 1 and 7 -- with nothing signalled.  Checked
+;;;   by looking every key up afterwards and by walking the table, not
+;;;   by HASH-TABLE-COUNT: the entries really are gone.  The same run
+;;;   with a lock held around the write lost none, five trials of five.
+;;;   So CCL needs a lock, and offering it a keyword instead would buy
+;;;   false confidence: a table that needs a lock must not be made to
+;;;   look like one that does not.
+;;;
+;;;   ECL 24.5.10 accepts :SYNCHRONIZED and then fails to build Maxima
+;;;   with it, "When acting on lock #<rwlock ...>, got an unexpected
+;;;   error" while loading init-cl, which is where *BUILTIN-SYMBOL-PROPS*
+;;;   and *VARIABLE-INITIAL-VALUES* are filled.  ECL 21.2.1 performs the
+;;;   same operations -- put, get, a nested lookup inside a write, and
+;;;   MAPHASH while writing -- without complaint, so this is a property
+;;;   of that release and not of the code above it.  Until somebody
+;;;   works out which, ECL gets a plain table.
+;;;
+;;; What this adds up to is worth stating plainly: there is no portable
+;;; synchronized hash table across the lisps Maxima supports.  A table
+;;; two threads must write wants a lock, and this constructor is an
+;;; optimisation on SBCL rather than the general answer.
+;;;
+;;; The probe proves the keyword is accepted, not that it is honoured.
+;;; What checks the second half is CHECK-SYNCHRONIZED-HASH-TABLE in
+;;; lisp-utils/thread-environment-check.lisp, which make check runs on
+;;; every lisp that has threads: eight threads insert into one table and
+;;; the entries are counted.  Measured on SBCL 2.2.9, a plain EQUAL
+;;; table given 8 x 20000 inserts kept 218, 328 and 869 of 160000 over
+;;; three trials and signalled "Unsafe concurrent operations ...
+;;; detected" in every thread; the same run through %MAKE-HASH-TABLE
+;;; kept all 160000 with no error, three trials out of three.
+;;;
+;;; What it does not buy is an atomic read-modify-write, and it does not
+;;; make iteration safe against a concurrent insert.  A table that is
+;;; mapped over while another thread writes it -- the eviction pattern,
+;;; WITH-HASH-TABLE-ITERATOR -- still wants a lock around both halves,
+;;; as *TEMP-FILES-LIST* has in plot.lisp.
+
+(defparameter *synchronized-hash-table-candidates*
+  #+sbcl '((:synchronized t))
+  #-sbcl '()
+  "Argument lists worth trying, in order.  Empty on a lisp where a
+synchronized table has been measured to be absent, useless or broken;
+see the commentary above before adding one.")
+
+(defparameter *synchronized-hash-table-arguments*
+  ;; SYMBOL-FUNCTION, not #', and it is load-bearing.  CLISP's compiler
+  ;; open-codes a call through #'MAKE-HASH-TABLE and drops the keyword
+  ;; check with it, so the probe saw :SYNCHRONIZED accepted, took it,
+  ;; and the next file to build a table died on the keyword CLISP does
+  ;; not have.  Measured: compiled, #' returns (:SYNCHRONIZED T) on
+  ;; CLISP 2.49.93 and SYMBOL-FUNCTION returns NIL; interpreted, both
+  ;; return NIL.  A funcall the compiler cannot resolve at compile time
+  ;; reaches the real argument-list check.
+  (loop for candidate in *synchronized-hash-table-candidates*
+        when (ignore-errors
+               (apply (symbol-function 'make-hash-table) candidate) t)
+          return candidate)
+  "Arguments that make MAKE-HASH-TABLE return a table safe to write from
+more than one thread, or NIL on a lisp that offers no such table.")
+
+(defun %make-hash-table (&rest arguments)
+  "MAKE-HASH-TABLE for a table that outlives the call that created it.
+
+ARGUMENTS come first, so a caller that passes :SYNCHRONIZED explicitly
+overrides the default rather than fighting it: a duplicate keyword takes
+its leftmost value."
+  (apply #'make-hash-table
+         (append arguments *synchronized-hash-table-arguments*)))
+
 ;;; exp is shadowed to save trouble for other packages--its declared special
 (deff exp #'cl:exp)
 

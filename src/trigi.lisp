@@ -986,7 +986,7 @@
                 (reduce-angle-mod-2pi (fapply 'mplus theta))
                 nil)))))))
 
-(defvar *atan2-extended-real-hashtable* (make-hash-table :test #'equal)
+(defvar *atan2-extended-real-hashtable* (%make-hash-table :test #'equal)
 "Hashtable giving the value of atan2(extended real, extended real) when the value
 is unambiguous. Ambiguous cases, for example atan2(inf,inf), are not included in 
 the hashtable.")

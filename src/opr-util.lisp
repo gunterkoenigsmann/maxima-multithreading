@@ -13,7 +13,9 @@
 
 ;; op and opr properties
 
-(defvar *opr-table* (make-hash-table :test #'equal))
+;; Written while a computation runs, not only as files load: infix(),
+;; prefix() and their relatives reach PUTOPR from Maxima level.
+(defvar *opr-table* (%make-hash-table :test #'equal))
 
 (defun getopr0 (x)
   (or

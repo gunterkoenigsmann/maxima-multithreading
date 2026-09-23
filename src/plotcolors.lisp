@@ -44,7 +44,12 @@ dark_blue or 'Dark blue', all meaning darkblue."
            "\""
            (coerce (mstring val) 'string)))))
 
-(defvar *color-table* (make-hash-table :test 'equal)
+;; Synchronized for the inserts only.  COLOR-NAMES at the foot of
+;; this file maps over the table, which stays undefined against a
+;; concurrent write however the table was made; nothing writes this
+;; after load today, which is what makes that safe rather than the
+;; table's own synchronization.
+(defvar *color-table* (%make-hash-table :test 'equal)
 "Table of the 139 colors names accepted in Maxima plots, which are
 the same color names accepted in HTML and CSS.")
 
