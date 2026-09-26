@@ -537,6 +537,15 @@ than for the computation."
    (append *private-maxima-variables*
    (list* '*private-maxima-variables* '$values '$myoptions 'bindlist 'mspeclist 'loclist '*mlambda-call-stack*
          '$context 'context '$contexts '$activecontexts
+         ;; The algebraic relations TELLRAT declares.  A computation that
+         ;; needs one tells it, works, and untells it -- the integrator's
+         ;; Rothstein-Trager part does exactly that for the root its
+         ;; logarithmic sum runs over -- so runners sharing the list take
+         ;; each other's relations away mid-computation.  It has to be
+         ;; bound here: the list lives in the lisp symbol TELLRATLIST, so
+         ;; a Maxima-level block naming tellratlist binds $TELLRATLIST,
+         ;; which nothing reads.
+         'tellratlist
          ;; A new worker's environment initially sees global precision.
          ;; Capture all eight values from its caller, including temporary
          ;; working precision; rebuilding from $FPPREC would lose that.
