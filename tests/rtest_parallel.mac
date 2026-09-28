@@ -1213,3 +1213,20 @@ true$
 
 (kill(all),0);
 0$
+
+/* A worker binds two flags because they answer two questions.  Ownership
+   of the session's facts, contexts and option variables is what a
+   computation asks before it assumes something temporarily, and it must be
+   false in every item -- including the one the caller runs itself, since
+   an item must not depend on who took it. */
+
+[?owns\-session\-state\-p(),
+ parallel_makelist(?owns\-session\-state\-p(), %zz, 1, 4)];
+[true, [false, false, false, false]]$
+
+/* the two are not the same flag: the guard's question is still answered by
+   the mode, and the session owns its state again afterwards */
+
+[parallel_makelist(?\*parallel\-evaluation\-p\*, %zz, 1, 2),
+ ?owns\-session\-state\-p()];
+[[true, true], true]$

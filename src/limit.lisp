@@ -113,17 +113,15 @@
 		  (t 
 		    (some #'(lambda (q) (indefinite-integral-p q x)) (cdr e)))))
 
-;; The context LIMIT is called in is shared with every other runner of a
-;; parallel computation, and they make the same assumptions about the same
-;; variable: ASSUME finds another runner's fact already there and adds none
-;; of its own, and when that runner forgets its fact this one goes on without
-;; it.  So inside a parallel element each call works in a scratch context of
-;; its own, and killing that context removes exactly the facts in it.
+;; LIMIT assumes things about the user's variable while it works.  Where
+;; the context it is called in is shared, every runner makes the same
+;; assumptions about the same variable, so ASSUME finds another runner's
+;; fact already there and adds none of its own, and when that runner
+;; forgets its fact this one goes on without it.  RESTORE-ASSUMPTIONS does
+;; the teardown, so nothing is passed here.
 (defun toplevel-$limit (&rest args)
-  (if *parallel-evaluation-p*
-      (with-new-context (context)
-	(apply #'toplevel-limit args))
-      (apply #'toplevel-limit args)))
+  (with-private-facts nil
+    (apply #'toplevel-limit args)))
 
 (defun toplevel-limit (&rest args)
   (let ((*limit-assumptions* ())
@@ -316,10 +314,10 @@
 (defun restore-assumptions ()
 ;;;Hackery until assume and forget take reliable args. Nov. 9 1979.
 ;;;JIM.
-  ;; Inside a parallel element TOPLEVEL-$LIMIT kills the scratch context
-  ;; these facts are in instead: FORGET could remove another runner's equal
-  ;; fact in place of this one.
-  (unless *parallel-evaluation-p*
+  ;; Where the session's state is shared, TOPLEVEL-$LIMIT has put these
+  ;; facts in a context it kills instead: FORGET could remove another
+  ;; runner's equal fact in place of this one.
+  (when (owns-session-state-p)
     (do ((assumption-list *limit-assumptions* (cdr assumption-list)))
 	((null assumption-list) t)
       (forget (car assumption-list))))

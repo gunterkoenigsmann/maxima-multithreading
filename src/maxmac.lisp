@@ -47,6 +47,27 @@
          (progn ,@forms)
          ($killcontext ,my-context)))))
 
+;; Run FORMS with the facts they assume belonging to them alone.
+;;
+;; Where this code owns the session's state it assumes in the caller's
+;; context and takes SERIAL-TEARDOWN back afterwards, which is what the
+;; serial contract wants: a question once answered stays answered, and
+;; $ASKSIGN's answers outlive the computation that asked.  Where the state
+;; is shared it assumes in a context of its own and kills it, because
+;; FORGET matches a fact by content, not by who asserted it: two runners
+;; assuming the same thing produce one fact, the second assume adds
+;; nothing, and the first forget takes it from both.  Retraction by
+;; content cannot be made thread-safe; owning the container can.
+;;
+;; SERIAL-TEARDOWN runs under UNWIND-PROTECT, so it also runs when FORMS
+;; throw, and it must cope with a fact FORMS had not asserted yet.  Pass
+;; NIL when the teardown lives elsewhere and asks OWNS-SESSION-STATE-P
+;; for itself.
+(defmacro with-private-facts (serial-teardown &body forms)
+  `(if (owns-session-state-p)
+       (unwind-protect (progn ,@forms) ,serial-teardown)
+       (with-new-context (context) ,@forms)))
+
 ;; For creating a macsyma evaluator variable binding context.
 ;; (MBINDING (VARIABLES &OPTIONAL VALUES FUNCTION-NAME)
 ;;    ... BODY ...)
