@@ -936,6 +936,15 @@
 (defvar *parallel-evaluation-p* nil
   "Non-NIL while evaluating an item of CALL-IN-PARALLEL.")
 
+;; Current character position on the output line.  The grinding/sizing
+;; printer tracks where the next character will appear, so that MPRINT can
+;; decide when to break a line and STRGRIND (grind.lisp) can buffer
+;; string-mode output via STYO/STERPRI.  It lives here rather than in
+;; mgrind.lisp because src/parallel.lisp binds it per runner and is
+;; compiled first: bound before it is declared special, the binding would
+;; be lexical and do nothing.
+(defvar *chrps* 0)
+
 (defvar *private-maxima-variables* nil
   "Dynamically private Maxima variables to capture for nested runners.")
 
