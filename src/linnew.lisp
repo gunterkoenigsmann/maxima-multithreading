@@ -19,7 +19,7 @@
 ;; DIMENSION=(declared dimension of MATRIX). TMINVERSE(MATRIX) computes the
 ;; inverse of matrix.
 
-;; The program uses hash arrays to remember the minors if N > threshold.  If
+;; The program uses hash tables to remember the minors if N >= threshold.  If
 ;; $WISE is set to T, the program knocks out unnecessary elements.  But also it
 ;; kills necessary ones in the case of zero elements! The $WISE flag should
 ;; not be set to T for inverse.  The default of $WISE is NIL.
@@ -42,7 +42,7 @@
 
 (defvar *tmarrays* nil)
 
-;; If N < threshold declared array is used, otherwise hashed array.
+;; If N < threshold declared array is used, otherwise a Lisp hash table.
 
 (defparameter *threshold* 10)
 
@@ -93,7 +93,6 @@
 		   result)
 	     (when (and (= ix 0) (equal (car result) '(0 . 1)))
 	       (merror (intl:gettext "tmlin: coefficient matrix is singular.")))))
-     (tmrearray *n*)
      (return r)))
 
 ;; TMINOR ACTUALLY COMPUTES THE MINOR DETERMINANT OF A SUBMATRIX OF A2, WHICH
@@ -194,7 +193,6 @@
      (tmdefarray *n*)
      (tmratconv *aa* *n* *n*)
      (setq r (cons (list 'mrat 'simp varlist genvar) (tmdet '*a2* *n*)))
-     (tmrearray *n*)
      (return r)))
 
 (defmfun $tmlinsolve (&rest arglist)
@@ -300,9 +298,6 @@
 
 (defun tmdefarray (*n*)
   (prog (name)
-     (cond ((setq *tmarrays* (get-array-pointer *tmarrays*))
-	    (tmrearray (1- (cond ((cadr (arraydims *tmarrays*)))
-				 (t 1))))))
      (setq *tmarrays* (make-array (1+ *n*) :initial-element nil))
      (do ((i 1 (1+ i)))
 	 ((> i *n*))
@@ -311,18 +306,8 @@
 	      (setf (symbol-value name) (make-array (1+ (tmcombi *n* i)) :initial-element nil))
 	      (setf (aref *tmarrays* i) (get-array-pointer name)))
 	     (t
-	      (setf (aref *tmarrays* i) (list name 'simp 'array)))))
+	      (setf (aref *tmarrays* i) (make-hash-table :test #'equal)))))
      (gensym "G")))
-
-;; TMREARRAY kills the TMARRAYS which holds pointers to minors. If (TMARRAYS I)
-;; is an atom, it is declared array.  Otherwise it is hashed array.
-
-(defun tmrearray (*n*)
-  (prog nil
-     (do ((i 1 (1+ i)))
-	 ((> i *n*))
-       (unless (atom (aref *tmarrays* i))
-	 (tm$kill (car (aref *tmarrays* i)))))))
 
 (defun tmaccess (index)
   (prog (l)
@@ -339,7 +324,7 @@
 		      (do ((j (1+ x) (1+ j)))
 			  ((= j (car y)))
 			(incf sum (tmcombi (- *n* j) (- l i)))))))
-	     (t (cons 'aref (cons (aref *tmarrays* l) index)))))) )
+	     (t (cons (aref *tmarrays* l) index))))) )
 
 (defun tmcombi (*n* i)
   (if (> (- *n* i) i)
@@ -355,8 +340,7 @@
   (cond ((< *n* *threshold*)
 	 (eval `(setf ,name ',x)))
 	(t
-	 (mset name (list '(mquote simp) x))
-	 x)))
+	 (setf (gethash (cdr name) (car name)) x))))
 
 ;; TMKILLARRAY kills all (N-IX+1)*(N-IX+1) minors which are not necessary for
 ;; the computation of IX-TH variable in the linear equation.  Otherwise, they
@@ -367,18 +351,13 @@
       ((> i *n*))
     (if (< *n* *threshold*)
 	(fillarray (aref *tmarrays* i) '(nil))
-	(tm$kill (car (aref *tmarrays* i))))))
+	(clrhash (aref *tmarrays* i)))))
 
 (defun tmeval (e)
-  (prog (result)
-     (return (cond ((< *n* *threshold*)
-		    (eval e))
-		   (t
-		    (setq result (meval e))
-		    (if (equal result e) nil (cadr result)))))))
-
-(defun tm$kill (e)
-  (kill1 e))
+  (cond ((< *n* *threshold*)
+	 (eval e))
+	(t
+	 (values (gethash (cdr e) (car e))))))
 
 (defmfun $tminverse (*aa*)
   (prog (r vlist *n* m nx *a2* *tmarrays*)
