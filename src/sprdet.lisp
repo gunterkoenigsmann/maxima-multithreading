@@ -17,7 +17,9 @@
 (declare-top (special ;;x
               *ptr* *ptc* *blk* ml* *detsign* rzl*))
 
-(defun sprdet (ax n)
+;; *PTR*, *PTC* and *BLK* are bound per call, as TDBU binds *DETSIGN* and
+;; X*: parallel runners compute sparse determinants at the same time.
+(defun sprdet (ax n &aux *ptr* *ptc* *blk*)
   (declare (fixnum n))
   (setq ax (get-array-pointer ax))
   (prog ((j 0) rodr codr bl det (dm 0) (r 0) (i 0))
@@ -116,7 +118,8 @@
 
 (defun tdbu (x n)
   (declare (fixnum n))
-  (prog (a ml* nl nml dd)
+  (prog (a ml* nl nml dd *detsign* x*)
+     (declare (special x*))		;NEWMAT fills it by name
      (setq *detsign* 1)
      (setq x (get-array-pointer x))
      (detpivot x n)
