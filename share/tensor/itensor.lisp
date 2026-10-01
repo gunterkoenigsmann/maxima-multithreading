@@ -201,8 +201,12 @@
 	    (not (eq (caar e) '$matrix))
 	    ($listp (cadr e))
 	    (cond ((cddr e) ($listp (caddr e)))
-		  (t (nconc e '(((mlist simp))))  t  ))))))
+		  (t (rplacd (cdr e) (list (list '(mlist simp))))  t  ))))))
                                           ;Transforms F([...]) into F([...],[])
+;; The empty list is fresh for each object, so no two objects completed here
+;; share a tail.  RPLACD on the CDR, rather than NCONC onto the end, leaves
+;; an object two threads complete at once with one list -- not two, and not
+;; a list appended to itself.
 
 ;RPOBJ is the predicate for indexed objects. In the case of no contravariant
 ;components, it tacks a null list on.

@@ -9,6 +9,15 @@ decsym(s,2,0,[sym(all)],[]);
 done;
 canform(s([i,j],[])-s([j,i],[]));
 0;
+/* RPOBJ completes an object with no contravariant list, F([i]) into
+   F([i],[]).  The list it adds must be the object's own: a shared constant
+   tail let two threads completing one object append it to itself, and
+   every object completed afterwards was circular -- measured, 7 of 8
+   parallel runs of canform(t1*b([j],[k])) with t1: a([i]) never ended. */
+block([t1: rp1([i]), t2: rp2([j])],
+  ?rpobj(t1), ?rpobj(t2),
+  [t1, t2, ?eq(?third(t1), ?third(t2))]);
+[rp1([i],[]), rp2([j],[]), false];
 decsym(a,2,0,[anti(all)],[]);
 done;
 canform(a([i,j],[])+a([j,i],[]));
