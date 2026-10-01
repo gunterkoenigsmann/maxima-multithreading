@@ -61,7 +61,7 @@
 	 ((> i *n*))
        (push i index))
      (setq index (nreverse index))
-     (tminor a4 *n* 1 index 0)))
+     (return (tminor a4 *n* 1 index 0))))
 
 ;; TMLIN SOLVES M SETS OF LINEAR EQUATIONS WITH N UNKNOWN VARIABLES. IT SOLVES
 ;; ONLY FOR THE FIRST NX UNKNOWNS OUT OF N. THE EQUATIONS ARE EXPRESSED IN
