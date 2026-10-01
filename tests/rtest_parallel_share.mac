@@ -124,6 +124,25 @@ sublist(makelist(i, i, 1, 48),
 (kill(all), 0);
 0$
 
+/* covdiff() (share/tensor/itensor.lisp) works with the variable it
+   differentiates by, a dummy index and a partial result, which each call
+   binds.  Kept in cells shared by the whole image, an element took
+   another element's variable and wrote false as an index -- measured on
+   SBCL, 6 of 10 regions of 24 came back wrong.  icounter is bound per
+   element so that the dummy indices do not depend on the order of the
+   calls. */
+(if get('itensor, 'version) = false then load(itensor), 0);
+0$
+
+(cov(k) := block([icounter: 0],
+    makelist(covdiff(a([i, j], [k1]), concat(x, k)), r, 1, 10)),
+ errcatch(is(parallel_makelist(cov(k), k, 1, 24)
+             = makelist(cov(k), k, 1, 24))));
+[true]$
+
+(kill(all), 0);
+0$
+
 /* simplify_sum (share/solve_rec/simplify_sum.mac) assigned polypart,
    support and dif -- and, on paths not reached here, ni_coeffs and
    quolim -- without making them block locals; support was even meant to
