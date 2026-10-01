@@ -400,6 +400,27 @@ true$
       else is(parallel_worker_items() = 0)]);
 [true, true]$
 
+/* todd_coxeter() queues cosets found to be equal in *TODO*, which each
+   call binds, and builds its multiplication table in todd_coxeter_state,
+   which each runner binds; serially the table stays there afterwards,
+   where the manual points users to it.  Shared, concurrent enumerations
+   failed with Lisp errors and then hung (measured on SBCL).  The first
+   two checks need no threads. */
+
+(?vector\-push\-extend(7, ?\*todo\*),
+ r: todd_coxeter([a^^3, b^^2, (a . b)^^2]),
+ [r, ?fill\-pointer(?\*todo\*), ?vector\-pop(?\*todo\*)]);
+[6, 1, 7]$
+
+?tc\-state\-ncosets(todd_coxeter_state);
+6$
+
+(tc_items(i) := [todd_coxeter([a^^i, b^^2, (a . b)^^2]),
+                 ?tc\-state\-ncosets(todd_coxeter_state)],
+ errcatch(is(parallel_makelist(tc_items(i), i, 3, 50)
+             = makelist([2*i, 2*i], i, 3, 50))));
+[true]$
+
 /* --- parallel(for ...) ---
 
    "for" is reader syntax, so it cannot be called as parallel_for(...);

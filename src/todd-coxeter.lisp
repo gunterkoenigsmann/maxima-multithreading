@@ -21,6 +21,9 @@
 
 ;; The data type we use to enumerate cosets.
 
+;; Pairs of cosets found to be equal and not yet identified.
+;; TODD-COXETER binds a fresh vector per call, because parallel runners
+;; enumerate cosets at the same time.
 (defvar *todo* (make-array 10 :element-type 'coset :fill-pointer 0 :adjustable t :initial-element 0))
 
 (defmacro with-multiply-table (&body body)
@@ -74,7 +77,9 @@
 ;; the running time of the first version of this code is observed to be quadratic
 ;; in the number of cosets.  On a rios it is approx 5*10^-5 * (ncosets)^2.
 
-(defun todd-coxeter (nvars rels subgp &aux (i 1) (c 0))
+(defun todd-coxeter (nvars rels subgp &aux (i 1) (c 0)
+		     (*todo* (make-array 10 :element-type 'coset :fill-pointer 0
+					    :adjustable t :initial-element 0)))
   (set-up nvars rels subgp)
   (loop while (>= (tc-state-ncosets $todd_coxeter_state) i)
 	 do  (incf c) ;; count how many row tries..
