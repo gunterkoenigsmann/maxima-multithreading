@@ -578,14 +578,18 @@
   (cond ((not (inside fun 'mquote)) fun)
 	(t (unquote (meval fun)))))
 
-(let (zerosigntest productcase)
-  (defun checksigntm (expr)
+;; Each call of CHECKSIGNTM binds both, because parallel runners ask for
+;; signs at the same time; CHECKFLAGANDACT and FINDSIGNOFACTORS work in the
+;; bindings of the call they serve.
+(defvar *zerosigntest*)
+(defvar *productcase*)
+
+(progn
+  (defun checksigntm (expr &aux (*zerosigntest* nil) (*productcase* nil))
     (prog (aslist quest)
-       (setf zerosigntest nil
-             productcase nil)
        (setq aslist *checkcoefsignlist*)
        (cond ((atom expr) (go loop)))
-       (cond ((eq (caar expr) 'mtimes)(setq productcase t)))
+       (cond ((eq (caar expr) 'mtimes)(setq *productcase* t)))
      loop (cond ((null aslist)
 		 (setq *checkcoefsignlist*
 		       (append *checkcoefsignlist*
@@ -598,15 +602,16 @@
        (go loop)))
 
   (defun checkflagandact (expr)
-    (cond (productcase
-	   (setq productcase nil)
+    (cond (*productcase*
+	   (setq *productcase* nil)
 	   (findsignoftheirproduct (findsignofactors (cdr expr))))
 	  (t (asksign ($realpart expr)))))
 
   (defun findsignofactors (listofactors)
     (cond ((null listofactors) nil)
-	  ((eq zerosigntest '$zero) '$zero)
-	  (t (append (list (setq zerosigntest (checksigntm (car listofactors))))
+	  ((eq *zerosigntest* '$zero) '$zero)
+	  (t (append (list (setq *zerosigntest*
+				 (checksigntm (car listofactors))))
 		     (findsignofactors (cdr listofactors)))))))
 
 (defun findsignoftheirproduct (llist)
