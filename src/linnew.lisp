@@ -180,7 +180,7 @@
 	 (setf (aref *a2* k j) (cdr (ratrep* (aref *a2* k j))))))))
 
 (defmfun $tmnewdet (mat &optional (dim nil dim?))
-  (prog (*aa* r vlist *n*)
+  (prog (*aa* r vlist *n* *a2* *tmarrays* nx)
      (cond (dim?
 	    (unless (integerp dim)
 	      (merror (intl:gettext "tmnewdet: second argument must be an integer; found: ~M") dim))
@@ -198,7 +198,7 @@
      (return r)))
 
 (defmfun $tmlinsolve (&rest arglist)
-  (prog (equations vars outvars result *aa*)
+  (prog (equations vars outvars result *aa* *n* nx)
      (setq equations (cdar arglist)
 	   vars (cdadr arglist)
 	   outvars (cond ((null (cddr arglist)) vars)
@@ -261,7 +261,7 @@
 	     (return (reverse l)))))
 
 (defmfun $tmlin (*aa* *n* m nx)
-  (prog (r vlist)
+  (prog (r vlist *a2* *tmarrays*)
      (setq *a2* (make-array (list (1+ *n*) (+ 1 m *n*)) :initial-element nil))
      (show *a2*)
      (tmratconv *aa* *n* (+ m *n*))
@@ -381,7 +381,7 @@
   (kill1 e))
 
 (defmfun $tminverse (*aa*)
-  (prog (r vlist *n* m nx)
+  (prog (r vlist *n* m nx *a2* *tmarrays*)
      (setq *n* (length (cdr *aa*)) m *n* nx *n*)
      (setq *a2* (make-array (list (1+ *n*) (+ 1 m *n*)) :initial-element nil))
      (tmratconv *aa* *n* *n*)
