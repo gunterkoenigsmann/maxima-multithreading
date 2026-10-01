@@ -175,6 +175,22 @@ block([ref: [limit(signum(x), x, minf), limit(atan2(exp(x), x), x, minf),
   [ref, is(r = makelist(ref, i, 1, 16)), is(contexts = c0), facts()]);
 [[-1, %pi, 0], true, true, []]$
 
+/* A limit that reaches GRUNTZ1 works in a context of its own.  Activating
+   that context counted it, and the contexts above it, in the shared marks:
+   while it lived, every other thread saw its facts -- x > 10^8 here -- and
+   sign(x) answered pos.  Measured: 40 of 40 elements asking sign(x) next to
+   ones computing limit((1 + 1/x)^x, x, inf) saw a sign, in every run; with
+   abs_integrate this was GitHub issue #118. */
+(gruntz_item(k) :=
+   if evenp(k) then makelist(limit((1 + 1/x)^x, x, inf), r, 1, 20)
+   else sublist(makelist(sign(x), r, 1, 300), lambda([s], s # pnz)),
+ block([r: parallel_makelist(gruntz_item(k), k, 1, 16)],
+   [sublist(makelist(k, k, 1, 16), lambda([k], oddp(k) and r[k] # [])),
+    every(lambda([k], oddp(k) or r[k] = makelist(%e, i, 1, 20)),
+          makelist(k, k, 1, 16)),
+    facts()]));
+[[], true, []]$
+
 is(parallel_makelist(factor(i! + 1), i, 1, 10)
    = makelist(factor(i! + 1), i, 1, 10));
 true$
