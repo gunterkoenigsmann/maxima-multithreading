@@ -162,3 +162,34 @@ X[1]*(a([i],[])*b([j],[])-a([j],[])*b([i],[]))/2;
  errcatch(is(parallel_makelist(cov_items(k), k, 1, 24)
              = makelist(cov_items(k), k, 1, 24))));
 [true];
+
+/* canform() puts the indices of a tensor into order and notes in CSIGN
+   whether sorting antisymmetric indices changed the sign; each call to
+   CANTEN binds it.  One CSIGN for the whole image gave parallel elements
+   each other's signs: terms of canform(extdiff(...)) cancelled or came
+   back negated, 3 to 7 of 8 elements wrong in every region (GitHub
+   issue #117).  asy is antisymmetric, so each canform below needs
+   exactly one sign change. */
+
+(decsym(asy, 2, 0, [anti(all)], []), 0);
+0;
+
+/* No thread needed: a call leaves the global CSIGN alone. */
+(?csign: 'csign_marker,
+ r: canform(asy([y1, x1], [])),
+ [r, ?csign]);
+[-asy([x1, y1], []), csign_marker];
+
+(?csign: false, 0);
+0;
+
+(asy_items(k) :=
+   makelist(canform(asy([concat(y, k), concat(x, k)], [])), r, 1, 10),
+ errcatch(is(parallel_makelist(asy_items(k), k, 1, 24)
+             = makelist(makelist(-asy([concat(x, k), concat(y, k)], []),
+                                 r, 1, 10),
+                        k, 1, 24))));
+[true];
+
+(remsym(asy, 2, 0), 0);
+0;
