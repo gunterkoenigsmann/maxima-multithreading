@@ -12,6 +12,9 @@
 
 (macsyma-module optim)
 
+;; The hash buckets OPTIMIZE and COLLAPSE sort subexpressions into.  Each
+;; call binds an array of its own: parallel runners call them at once, and
+;; each call starts by expecting the buckets empty.
 (defvar *subexp* (make-array 64 :initial-element nil))
 
 (defmvar $optimprefix '$%
@@ -29,20 +32,19 @@
 	*setqs*
 	vars
 	(*optimcount* 0)
-	(*xvars* (cdr ($listofvars x0))))
+	(*xvars* (cdr ($listofvars x0)))
+	(*subexp* (make-array 64 :initial-element nil)))
     (declare (special *optimcount* *xvars* *setqs* vars))
-    (fill *subexp* nil)
     (prog ((x (collapse (opformat (collapse x0)))))
        (when (atom x) (return x))
        (comexp x)
        (setq x (optim x))
-       (return (prog1 (cond ((null vars) x0)
-			    (t (if (or (not (eq (caar x) 'mprog))
-				       (and ($listp (cadr x)) (cdadr x)))
-				   (setq x (nreverse (cons x *setqs*)))
-				   (setq x (nreconc *setqs* (cddr x))))
-			       `((mprog simp) ((mlist) ,@(nreverse vars)) ,@x)))
-		 (fill *subexp* nil))))))
+       (return (cond ((null vars) x0)
+		     (t (if (or (not (eq (caar x) 'mprog))
+				(and ($listp (cadr x)) (cdadr x)))
+			    (setq x (nreverse (cons x *setqs*)))
+			    (setq x (nreconc *setqs* (cddr x))))
+			`((mprog simp) ((mlist) ,@(nreverse vars)) ,@x)))))))
 
 (defun opformat (x)
   (cond ((atom x) x)
@@ -87,8 +89,8 @@
     (if (alike1 x xnew) x xnew)))
 
 (defmfun $collapse (x)
-  (fill *subexp* nil)
-  (prog1 (collapse x) (fill *subexp* nil)))
+  (let ((*subexp* (make-array 64 :initial-element nil)))
+    (collapse x)))
 
 (defun collapse (x)
   (cond ((atom x) x)
