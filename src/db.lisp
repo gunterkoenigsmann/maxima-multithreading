@@ -241,11 +241,16 @@
 (defun offp (cl lab)
   (subp lab (-labz cl)))
 
+;; A fact LOCAL hides carries LOCAL-HIDDEN until the frame is left.  It is
+;; a property of its own, not a value of the search label ULABS: CLEAR
+;; removes ULABS from every fact the last search touched, and the label is
+;; a cell the search reads and writes.
 (defun onpu (lab fact)
-  (subp lab (ulabz fact)))
+  (or (zl-get fact 'local-hidden)
+      (subp lab (ulabz fact))))
 
 (defun visiblep (dat)
-  (and (not (ulabs dat)) (cntp dat)))
+  (and (not (zl-get dat 'local-hidden)) (not (ulabs dat)) (cntp dat)))
 
 (defun cancel (lab dat)
   (cond ((setq *db* (ulabs dat))
@@ -554,7 +559,7 @@
   "Temporarily hide VARIABLE's facts and return them for LOCAL's frame."
   (with-database-transaction
     (let ((facts (get variable 'data)))
-      (dolist (fact facts) (putprop fact -1 'ulabs))
+      (dolist (fact facts) (putprop fact t 'local-hidden))
       (zl-remprop variable 'data)
       facts)))
 
@@ -564,7 +569,7 @@
     (mapc #'(lambda (datum) (uncntxt datum) (remov datum))
           (get variable 'data))
     (cput variable facts 'data)
-    (dolist (fact facts) (zl-remprop fact 'ulabs))))
+    (dolist (fact facts) (zl-remprop fact 'local-hidden))))
 
 (defun uncntxt (dat)
   (with-database-transaction
