@@ -434,8 +434,27 @@
         (setq +labs nil))
       isp)))
 
+;; KINDP, KIND-ANY-OF, KIND-ALL-OF-P and DECL-COMPLEX-KIND search from X
+;; along KIND and PAR datums only: MARK+1 follows any other datum through the
+;; labels of other nodes, and these searches label no node they did not reach
+;; that way.  So when X has neither, the search meets X and nothing else, and
+;; its answer depends on X alone.  That is nearly every call -- GREAT and
+;; TIMESIN ask about almost every symbol they meet -- and those calls are
+;; answered without the database lock, which otherwise serializes parallel
+;; simplification.  The check sets no mark, and every writer of DATA replaces
+;; the list or splices it, so a concurrent change makes it come out as if it
+;; ran just before or just after.
+(defun kind-search-stays-at-p (x)
+  "True when a kind search starting at X can reach no node but X."
+  (or (not (symbolp x))
+      (dolist (dat (get x 'data) t)
+        (when (member (caar dat) '(kind par))
+          (return nil)))))
+
 ;; Return NIL for all non-symbols.
 (defun kindp (x y)
+  (when (and (kind-search-stays-at-p x) (not (eq x y)))
+    (return-from kindp nil))
   (with-database-transaction
     (when (and (symbolp x) (get x 'data))
       (clear)
@@ -453,6 +472,8 @@
   kinds, e.g. '$EVEN and '$ODD. Returns NIL if no matching kind is found.
   This is faster than (OR (KINDP X K1) (KINDP X K2) ...), since it only requires
   a single database query."
+  (when (and (kind-search-stays-at-p x) (not (member x kinds)))
+    (return-from kind-any-of nil))
   (with-database-transaction
     (when (and (symbolp x) (get x 'data))
       (clear)
@@ -469,6 +490,8 @@
   than (AND (KINDP X K1) (KINDP X K2) ...), since it only requires a single
   database query. The implementation relies on counting matching kinds, therefore
   KINDS should not contain repeated items."
+  (when (and (kind-search-stays-at-p x) (not (member x kinds)))
+    (return-from kind-all-of-p (null kinds)))
   (with-database-transaction
     (let ((remaining (length kinds)))
       (when (and (symbolp x) (get x 'data))
@@ -485,6 +508,9 @@
 (defun decl-complex-kind (x)
   "Returns '$IMAGINARY if the symbol X is declared imaginary, '$COMPLEX if it is
   declared complex but not imaginary, else NIL. This is faster than two checks."
+  (when (and (kind-search-stays-at-p x)
+             (not (member x '($imaginary $complex))))
+    (return-from decl-complex-kind nil))
   (with-database-transaction
     (when (and (symbolp x) (get x 'data))
       (clear)

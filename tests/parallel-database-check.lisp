@@ -332,3 +332,49 @@
                   (not (kindp probe kind-name))))
         (killc dead)
         (killc live)))))
+
+;;; A kind search that can only meet its own node answers without the
+;;; database lock.  The simplifier asks one for nearly every symbol it
+;;; meets, so waiting for the lock serialized parallel simplification.
+;;; Another thread holds the lock (for at most ten seconds) while this
+;;; one asks; the answers must arrive before that thread lets go.
+(defun $parallel_database_kind_unlocked ()
+  ;; Without threads there is no other thread to wait for.
+  (unless (parallel-threads-p)
+    (return-from $parallel_database_kind_unlocked t))
+  (let ((gate (%make-lock "kind search test gate"))
+        (held nil) (release nil) (released nil)
+        (bare (gensym "$KIND_BARE"))
+        (related (gensym "$KIND_RELATED"))
+        (holder nil) (answers nil) (released-before nil))
+    (flet ((flag (name) (%with-lock (gate)
+                          (ecase name (held held) (release release)
+                                      (released released)))))
+      (with-new-context ()
+        ;; A relation fact gives RELATED data but no KIND or PAR datum.
+        (mdata t 'mgrp related 0)
+        (setq holder
+              (%spawn
+               (lambda ()
+                 (with-database-transaction
+                   (%with-lock (gate) (setq held t))
+                   (let ((deadline (+ (get-internal-real-time)
+                                      (* 10 internal-time-units-per-second))))
+                     (loop until (or (flag 'release)
+                                     (> (get-internal-real-time) deadline))
+                           do (sleep 0.001)))
+                   (%with-lock (gate) (setq released t))))
+               "database lock holder"))
+        (unwind-protect
+             (progn
+               (loop until (flag 'held) do (sleep 0.001))
+               (setq answers (list (kindp bare '$constant)
+                                   (kindp related '$constant)
+                                   (kind-any-of related '($even $odd))
+                                   (kind-all-of-p related '($integer))
+                                   (decl-complex-kind related))
+                     released-before (flag 'released)))
+          (%with-lock (gate) (setq release t))
+          (%join holder))))
+    (and (not released-before)
+         (equal answers '(nil nil nil nil nil)))))

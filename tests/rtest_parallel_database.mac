@@ -59,3 +59,20 @@ true$
 
 (forget(a>0),kill(all),0);
 0$
+
+/* A kind search from a symbol with no kind fact -- nearly every one the
+   simplifier makes -- answers while another thread holds the database
+   lock.  Waiting for it serialized parallel simplification: 66% of all
+   thread time in a parallel factor() went to that lock, from KINDP. */
+parallel_database_kind_unlocked();
+true$
+
+/* The searches still answer from kind facts, and from the kinds those
+   imply, exactly as before. */
+(declare(kq, even), declare(kc, complex),
+ [featurep(kq, integer), featurep(kq, odd),
+  ?decl\-complex\-kind('kc), ?decl\-complex\-kind('kq)]);
+[true, false, complex, false]$
+
+(remove(kq, even), remove(kc, complex), 0);
+0$
