@@ -229,6 +229,16 @@ errcatch(is(parallel_makelist(jacobi_am(bfloat(i/10), 0.5b0), i, 1, 50)
             = makelist(jacobi_am(bfloat(i/10), 0.5b0), i, 1, 50)));
 [true]$
 
+/* The bigfloat values of %pi, %e and the other constants are cached per
+   precision, in one table for the whole session.  Each element here asks
+   for a precision the table has not seen, so all of them write it at
+   once.  The parallel list comes first on purpose: computed second, it
+   would find every value cached and only read. */
+
+errcatch(is(parallel_makelist(block([fpprec: 300 + i], bfloat(%pi)), i, 1, 500)
+            = makelist(block([fpprec: 300 + i], bfloat(%pi)), i, 1, 500)));
+[true]$
+
 /* --- did the work really happen on another thread? ---
 
    The sleep is what makes this meaningful: with an instant body the
