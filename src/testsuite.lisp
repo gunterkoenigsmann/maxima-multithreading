@@ -133,6 +133,7 @@
 	 ((mlist simp) 29 49 50 51 59 60 61 62 78 80))
         "rtest_plotoptions"
 	"rtest_algsys"
+	"rtest_tmlinsolve"
         "rtest_trace"
 	"rtest_polynomialp"
         ((mlist simp) "rtest_limit_extra" 
