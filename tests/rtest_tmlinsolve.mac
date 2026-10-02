@@ -57,3 +57,51 @@ true;
 
 every (map (is, ratsimp (subst (foo, e4))));
 true;
+
+ratdisrep (tmnewdet (matrix ([2, 1, 0], [1, 3, 1], [0, 1, 4])));
+18;
+
+ratdisrep (tmnewdet (matrix ([2, 1, 0], [1, 3, 1], [0, 1, 4]), 2));
+5;
+
+ratsimp (tmnewdet (matrix ([a, b, 0], [c, d, 1], [0, 1, e]))
+         - determinant (matrix ([a, b, 0], [c, d, 1], [0, 1, e])));
+0;
+
+/* Each call works in arrays of its own, so parallel elements of different
+   sizes give the serial answers. */
+(tm_mat (k) := genmatrix (lambda ([r, c],
+   if r = c then k + r + 3 else mod (r*c + k, 5)), 4 + mod (k, 3)),
+ tm_item (k) := block ([n : 4 + mod (k, 3)],
+   ratdisrep ([tmnewdet (tm_mat (k)), tminverse (tm_mat (k)),
+     tmlin (addcol (tm_mat (k), makelist (r, r, 1, n)), n, 1, n)])),
+ 0);
+0;
+
+is (parallel_makelist (tm_item (k), k, 1, 24)
+    = makelist (tm_item (k), k, 1, 24));
+true;
+
+(remfunction (tm_mat, tm_item), 0);
+0;
+
+/* From 10 rows on, the minors are kept in hash tables instead of arrays. */
+(tm_mat (n) := genmatrix (lambda ([i, j],
+   if i = j then 3 + i else mod (i*j + 1, 3)), n),
+ 0);
+0;
+
+is (ratsimp (tminverse (tm_mat (10)) . tm_mat (10)) = ident (10));
+true;
+
+is (ratdisrep (tmnewdet (tm_mat (11))) = determinant (tm_mat (11)));
+true;
+
+block ([x : makelist (v[j], j, 1, 10), e],
+  e : makelist (sum (tm_mat (10)[i, j] * x[j], j, 1, 10) = i, i, 1, 10),
+  foo : (tmlinsolve (e, x), ev (%%), ev (%%), ratdisrep (%%)),
+  every (map (is, ratsimp (subst (foo, e)))));
+true;
+
+(remfunction (tm_mat), kill (foo), arrays);
+[];
