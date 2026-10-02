@@ -57,5 +57,26 @@ true$
 (forget(q>0),0);
 0$
 
+/* LOCAL saves each variable's properties and facts on stacks that the end of
+   the block pops again.  Every runner has its own stacks, so when parallel
+   bodies leave their blocks out of order -- the sum makes them take
+   different times -- each variable gets back its own definition and facts. */
+(for k thru 24 do (define(funmake(concat(lsv, k), [y]), y + 1000*k),
+                   apply(assume, [concat(lsv, k) > k])),
+ lsv_item(k) := ev(buildq([v: concat(lsv, k), k: k],
+                          block([], local(v), v(y) := y - k,
+                                sum(v(j), j, 1, 40*mod(k, 7)), v(0))), eval),
+ [is(parallel_makelist(lsv_item(k), k, 1, 24) = makelist(-k, k, 1, 24)),
+  sublist(makelist(k, k, 1, 24),
+          lambda([k], apply(concat(lsv, k), [0]) # 1000*k)),
+  sublist(makelist(k, k, 1, 24),
+          lambda([k], facts(concat(lsv, k)) # [concat(lsv, k) > k]))]);
+[true, [], []]$
+
+(for k thru 24 do (apply(forget, [concat(lsv, k) > k]),
+                   apply(remfunction, [concat(lsv, k)])),
+ remfunction(lsv_item), 0);
+0$
+
 (forget(a>0),kill(all),0);
 0$
