@@ -17,6 +17,18 @@ allsym:true;
 true;
 canform(a([i,j],[])-a([j,i],[]));
 0;
+/* REDCAN orders the factors by their free and bound indices, which it keeps
+   in FREI and BOUNI for the comparisons; each call has its own.  canten() is
+   autoloaded and a parallel element cannot load, so one call comes first. */
+(canten_item(k) := block([icounter: 0],
+   makelist(canten(if evenp(k) then a1([i,j],[k1])*b1([j,k1],[l])
+                   else c1([m],[n,p])*d1([n],[])*f1([p,q],[])), r, 1, 10)),
+ canten_item(0),
+ is(parallel_makelist(canten_item(k), k, 1, 24)
+    = makelist(canten_item(k), k, 1, 24)));
+true;
+(remfunction(canten_item), 0);
+0;
 allsym:false;
 false;
 rename(a([i,j1],[])*b([],[j1,k])+a([i,j2],[])*b([],[j2,k]));

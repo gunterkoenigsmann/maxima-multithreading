@@ -211,7 +211,7 @@
 ;SORTED AND PUT IN A
 
 (defun redcan (e)
-  (prog (a b c d l nrpfact cci coi ct cil ocil)  (when (eq t (brek 6)) (break "6"))
+  (prog (a b c d l nrpfact cci coi ct cil ocil frei bouni)  (when (eq t (brek 6)) (break "6"))
     (setq nrpfact  (cadr (rpobs (cdr e)))
 	  d (irpmon e)
 	  frei (car d) bouni (cadr d)
