@@ -21,6 +21,16 @@ allsym:false;
 false;
 rename(a([i,j1],[])*b([],[j1,k])+a([i,j2],[])*b([],[j2,k]));
 2*a([i,%1],[])*b([],[%1,k]);
+/* RENAME numbers the dummy indices with a counter of its own, so parallel
+   renames give the serial results.  The loop variable is not k, an index. */
+(rename_item(kk) :=
+   [rename(a([i,j1],[])*b([],[j1,k]) + a([i,j2],[])*b([],[j2,k]), kk),
+    rename(c1([l1,l2],[])*d1([],[l1,l2]) + c1([m1,m2],[])*d1([],[m1,m2]))],
+ is(parallel_makelist(rename_item(kk), kk, 1, 48)
+    = makelist(rename_item(kk), kk, 1, 48)));
+true;
+(remfunction(rename_item), 0);
+0;
 /* Components */
 (kill(h),remcomps(h));
 done;
