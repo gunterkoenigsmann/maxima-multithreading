@@ -171,6 +171,9 @@
             SSPAR[j] < 0, use default value.  See Fortran polynf and
             stepnf for more info."
 
+  ;; The translated routines keep saved variables in top-level LETs,
+  ;; one set per image.
+  (ensure-serial-execution '$hompack_polsys)
   (unless (= ($length eqnlist) ($length varlist))
     (merror "~M: Number of equations (~M) is not the number of variables (~M)"
 	    %%pretty-fname (length eqnlist) (length varlist)))
@@ -316,6 +319,7 @@
 			       (iflag -1) (arctol -1d0) (eps 1d-5) (trace 0) inita)
   "hompack_fixpdf"
 
+  (ensure-serial-execution '$hompack_fixpdf)
   (let* ((n (length (cdr var-list)))
 	 (y (make-array (1+ n) :element-type 'double-float
 			       :initial-element 0d0))
