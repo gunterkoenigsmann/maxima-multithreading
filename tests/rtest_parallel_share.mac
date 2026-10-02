@@ -49,6 +49,22 @@ sublist(makelist(i, i, 1, 48),
 (kill(all), 0);
 0$
 
+/* hompack (share/hompack) has no test file of its own. */
+(kill(all), load(hompack), 0);
+0$
+
+/* hompack_fixpdf on its own example (share/hompack/hompack_ex2.mac).  It
+   named its variable list VARLIST, the rational function package's
+   special, which came back false from computing the Jacobian. */
+block([pr5: x1*x2*x3*x4*x5, s5: x1 + x2 + x3 + x4 + x5 - 6],
+  block([r: hompack_fixpdf([pr5 - 1, s5 + x2, s5 + x3, s5 + x4, s5 + x5],
+                           [x1, x2, x3, x4, x5], arctol = .5e-4, eps = .5e-4)],
+    [first(r), every(lambda([v], is(abs(v - 1) < 1e-3)), second(r))]));
+[1, true]$
+
+(kill(all), 0);
+0$
+
 /* PIECE is the part the last part() or inpart() call selected, and code
    reads it right after that call: trgsmp.mac does get(piece, ...) after
    inpart(alt, 0), and so do a dozen other share packages.  It is bound

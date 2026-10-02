@@ -311,12 +311,12 @@
 
 (in-package "MAXIMA")
 
-(defmfun $hompack_fixpdf (fcns varlist
+(defmfun $hompack_fixpdf (fcns var-list
 			       &key
 			       (iflag -1) (arctol -1d0) (eps 1d-5) (trace 0) inita)
   "hompack_fixpdf"
 
-  (let* ((n (length (cdr varlist)))
+  (let* ((n (length (cdr var-list)))
 	 (y (make-array (1+ n) :element-type 'double-float))
 	 (ndima n)
 	 (a (make-array ndima :element-type 'double-float))
@@ -333,10 +333,10 @@
 	 (ipar (make-array 1 :element-type 'f2cl-lib:integer4))
 	 (arclen 0d0)
 	 (nfe 0)
-	 (fvs (coerce-float-fun fcns varlist))
-	 (fj (let ((fj (meval `(($jacobian) ,fcns ,varlist))))
+	 (fvs (coerce-float-fun fcns var-list))
+	 (fj (let ((fj (meval `(($jacobian) ,fcns ,var-list))))
 	       (mapcar #'(lambda (fjf)
-			   (coerce-float-fun fjf varlist))
+			   (coerce-float-fun fjf var-list))
 		       ;; The Fortran code wants the k-th column, so
 		       ;; transpose the Jacobian here to make the
 		       ;; interface between Maxima and Fortran a
