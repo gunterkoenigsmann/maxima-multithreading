@@ -108,6 +108,10 @@
 ;;                len_iwork    - Actual length used for integer work array
 ;;
 (defmfun $dlsode_step (init-y tt tout rtol atol istate state)
+  ;; DLSODE and the routines it calls keep the integrator's state in
+  ;; the DLS001 common block and in saved variables of the translated
+  ;; code, one set per image.
+  (ensure-serial-execution '$dlsode_step)
   (let ((f ($assoc '$f state))
 	(vars ($assoc '$vars state))
 	(mf ($assoc '$mf state))
@@ -218,6 +222,7 @@
 		 (make-mlist '$len_iwork (aref iwork 17)))))))))
 
 (defmfun $dlsode (f yvars inity trange rtol atol mf)
+  (ensure-serial-execution '$dlsode)
   (let* ((tvar (elt trange 1))
 	 (tstart ($float (elt trange 2)))
 	 (tend ($float (elt trange 3)))
