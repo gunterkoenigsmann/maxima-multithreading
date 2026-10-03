@@ -84,6 +84,51 @@ makelist(f(i), i, 1, 3);
 (kill(all), 0);
 0$
 
+/* colnew (share/colnew) has no test file of its own.  It is
+   f2cl-translated Fortran that keeps its state in nine common blocks, one
+   set for all threads, so parallel colnew_expert() calls broke each
+   other's solutions.  colnew_expert refuses a parallel computation, as
+   the LAPACK eigenvalue routines do; the operator in error is checked,
+   not the message, which can be translated.  colnew_appsln only reads
+   the common blocks and stays allowed. */
+(kill(all), load(colnew), 0);
+0$
+
+/* Problem 1 of share/colnew/prob1.mac, against its exact solution at
+   x = 1.5; ipar[7] = 1 turns the mesh printout off. */
+(cnf(x, z1, z2, z3, z4) := [(1 - 6*x^2*z4 - 6*x*z3)/x^3],
+ cndf(x, z1, z2, z3, z4) := matrix([0, 0, -6/x^2, -6/x]),
+ cng(i, z1, z2, z3, z4) := [z1, z3, z1, z3][i],
+ cndg(i, z1, z2, z3, z4) := [[1, 0, 0, 0], [0, 0, 1, 0],
+                             [1, 0, 0, 0], [0, 0, 1, 0]][i],
+ cnrun() := colnew_expert(1, [4], 1d0, 2d0, [1d0, 1d0, 2d0, 2d0],
+                          [0, 0, 1, 2, 2000, 200, 1, 0, 0, 0, 0], [1, 3],
+                          [1d-7, 1d-7], [], makelist(0, k, 1, 200),
+                          makelist(0d0, k, 1, 2000), 0,
+                          cnf, cndf, cng, cndg, cnguess),
+ cnexact(x) := [.25*(10*log(2.) - 3)*(1 - x) + .5*(1/x + (3 + x)*log(x) - x),
+                -.25*(10*log(2.) - 3) + .5*(-1/x^2 + log(x) + (3 + x)/x - 1),
+                .5*(2/x^3 + 1/x - 3/x^2),
+                .5*(-6/x^4 - 1/x^2 + 6/x^3)],
+ cnr: cnrun(),
+ [first(cnr),
+  every(lambda([d], is(abs(d) < 1e-4)),
+        first(colnew_appsln([1.5], 4, second(cnr), third(cnr)))
+        - cnexact(1.5))]);
+[1, true]$
+
+[errcatch(parallel_makelist(cnrun(), k, 1, 4)), second(error)];
+[[], colnew_expert]$
+
+is(parallel_makelist(colnew_appsln([1 + k/10.0], 4, second(cnr), third(cnr)),
+                     k, 0, 10)
+   = makelist(colnew_appsln([1 + k/10.0], 4, second(cnr), third(cnr)),
+              k, 0, 10));
+true$
+
+(kill(all), 0);
+0$
+
 /* lsquares_estimates_exact (share/lsquares/lsquares.mac) kept the
    stationary points solve() returns in a global variable, solutions.
    Concurrent calls then lost each other's exact solution and fell back
