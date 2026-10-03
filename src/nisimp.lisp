@@ -17,6 +17,9 @@
 ;;;property list of atoms
 ;;;except for the top level programs all program names have the prefix NIS
 
+;;; NISTREE, NISRULES and NISFLAG hold the tree, the rules and the search
+;;; flag of the rule package a command works on.  Each command binds the
+;;; ones it sets, so nested and parallel calls keep their own.
 (declare-top (special nistree nisrules nisflag)) 
 
 (defmvar $letvarsimp nil)
@@ -128,7 +131,7 @@
 (defmspec $remlet (x)
   (setq x (cdr x))
   ;; REMLET(PROD,NAME) REMLET(PROD) REMLET() REMLET(FALSE,NAME)
-  (prog (pattern text treename)
+  (prog (pattern text treename nistree nisrules nisflag)
      (cond ((cddr x) (wna-err '$remlet))
 	   ((null (cdr x)) (setq treename $current_let_rule_package))
 	   (t (setq treename (cadr x))
@@ -183,7 +186,8 @@
 
 (defmspec $letrules (name)
   (setq name (cdr name))		;LETRULES(NAME)
-  (let ((treename (if name (car name) $current_let_rule_package)))
+  (let ((treename (if name (car name) $current_let_rule_package))
+	nistree nisrules)
     (if (not (symbolp treename)) (improper-arg-err treename '$letrules))
     (setq nistree (mget treename 'letsimptree)
 	  nisrules (mget treename 'letrules))
@@ -193,7 +197,7 @@
   (setq form (cdr form))
   (let* ((expr (strip-lineinfo (meval (pop form))))
 	 (sw ($ratp expr))
-	 $ratfac)
+	 $ratfac nistree)
     (progv (unless sw '(varlist genvar))
 	(unless sw (list varlist genvar))
       (when (and sw (member 'trunc (cdar expr) :test #'eq))
