@@ -66,6 +66,7 @@ TKSOURCES = \
 	Tkmaxima/NConsole.tcl \
 	Tkmaxima/String.tcl \
 	Tkmaxima/InterruptChannel.tcl \
+	Tkmaxima/Authenticate.tcl \
 	Tkmaxima/RunMaxima.tcl \
 	Tkmaxima/Menu.tcl \
 	Tkmaxima/Paths.tcl \

@@ -12,5 +12,7 @@ depcheck.sh
 *-depcheck.sh*
 interruptcheck.sh
 *-interrupt-channel.sh*
+authcheck.sh
+*-auth.sh*
 bin
 

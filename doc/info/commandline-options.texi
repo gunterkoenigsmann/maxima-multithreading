@@ -93,6 +93,10 @@ The following command line options are available for Maxima:
 @need 150
 @item -s <port>, --server=<port>
          Connect Maxima to server on <port>.
+         If the environment variable MAXIMA_AUTH_CODE is set, the first
+         line Maxima sends the server is <wxxml-key><its value></wxxml-key>,
+         which proves to the server that the connection comes from the
+         Maxima it started.
 
 
 @need 150

@@ -206,6 +206,10 @@ Other changes:
   instead of a signal, wherever the Lisp has threads (SBCL, CCL, ECL,
   clisp built with threads). Any frontend that starts Maxima with -s
   can use the same channel by passing a token in MAXIMA_INTERRUPT_TOKEN
+* Xmaxima only takes a connection for Maxima's once it has proven to
+  come from the Maxima xmaxima started, and listens on the loopback
+  interface only. Any frontend that starts Maxima with -s can get the
+  same proof by passing a secret in MAXIMA_AUTH_CODE
 * New function read_struct: reads a .csv file whose first line names
   the columns into a structure, so that data@t is the column headed t
 * read_matrix and the other numericalio text readers are about twice as

@@ -6,10 +6,12 @@ export
 TESTS =
 CLEANFILES = 
 INTERRUPT_CHANNEL_TESTS =
+AUTH_TESTS =
 
 if CLISP
 TESTS += clisp-test.sh
 INTERRUPT_CHANNEL_TESTS += clisp-interrupt-channel.sh
+AUTH_TESTS += clisp-auth.sh
 CLEANFILES += clisp-test.sh clisp.log clisp_share.log
 clisp-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -20,6 +22,7 @@ endif
 if CMUCL
 TESTS += cmucl-test.sh
 INTERRUPT_CHANNEL_TESTS += cmucl-interrupt-channel.sh
+AUTH_TESTS += cmucl-auth.sh
 CLEANFILES += cmucl-test.sh cmucl.log cmucl_share.log
 cmucl-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -30,6 +33,7 @@ endif
 if SBCL
 TESTS += sbcl-test.sh
 INTERRUPT_CHANNEL_TESTS += sbcl-interrupt-channel.sh
+AUTH_TESTS += sbcl-auth.sh
 CLEANFILES += sbcl-test.sh sbcl.log sbcl_share.log
 sbcl-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -50,6 +54,7 @@ endif
 if GCL
 TESTS += gcl-test.sh
 INTERRUPT_CHANNEL_TESTS += gcl-interrupt-channel.sh
+AUTH_TESTS += gcl-auth.sh
 CLEANFILES += gcl-test.sh gcl.log gcl_share.log
 gcl-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -60,6 +65,7 @@ endif
 if ACL
 TESTS += acl-test.sh
 INTERRUPT_CHANNEL_TESTS += acl-interrupt-channel.sh
+AUTH_TESTS += acl-auth.sh
 CLEANFILES += acl-test.sh acl.log acl_share.log
 acl-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -70,6 +76,7 @@ endif
 if OPENMCL
 TESTS += openmcl-test.sh
 INTERRUPT_CHANNEL_TESTS += openmcl-interrupt-channel.sh
+AUTH_TESTS += openmcl-auth.sh
 CLEANFILES += openmcl-test.sh openmcl.log openmcl_share.log
 openmcl-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -80,6 +87,7 @@ endif
 if CCL64
 TESTS += ccl64-test.sh
 INTERRUPT_CHANNEL_TESTS += ccl64-interrupt-channel.sh
+AUTH_TESTS += ccl64-auth.sh
 CLEANFILES += ccl64-test.sh ccl64.log ccl64_share.log
 ccl64-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -90,6 +98,7 @@ endif
 if ECL
 TESTS += ecl-test.sh
 INTERRUPT_CHANNEL_TESTS += ecl-interrupt-channel.sh
+AUTH_TESTS += ecl-auth.sh
 CLEANFILES += ecl-test.sh ecl.log ecl_share.log
 ecl-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -100,6 +109,7 @@ endif
 if ABCL
 TESTS += abcl-test.sh
 INTERRUPT_CHANNEL_TESTS += abcl-interrupt-channel.sh
+AUTH_TESTS += abcl-auth.sh
 CLEANFILES += abcl-test.sh abcl.log abcl_share.log
 abcl-test.sh: test.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -118,7 +128,18 @@ $(INTERRUPT_CHANNEL_TESTS): interruptcheck.sh Makefile
 	echo "exec ./interruptcheck.sh $(patsubst %-interrupt-channel.sh,%,$@)" >> $@
 	chmod +x "$@"
 
+## Maxima proves to xmaxima that it is the Maxima xmaxima started, on every
+## configured Lisp.  Exits 77 (SKIP) when there is no tclsh.
+TESTS += $(AUTH_TESTS)
+CLEANFILES += $(AUTH_TESTS)
+
+$(AUTH_TESTS): authcheck.sh Makefile
+	echo "#!/bin/sh" > $@
+	echo "exec ./authcheck.sh $(patsubst %-auth.sh,%,$@)" >> $@
+	chmod +x "$@"
+
 genericdir = $(insttestsdir)
 genericdirDATA = $(wildcard $(addprefix $(srcdir)/, README.how-to mcond_display_elseif.out *.mac *.lisp *.wxm *.wxmx load_relative/* wester_problems/*))
 
-EXTRA_DIST = $(genericdirDATA) interruptcheck.sh.in interruptcheck.tcl test.sh.in depcheck.sh.in
+EXTRA_DIST = $(genericdirDATA) interruptcheck.sh.in interruptcheck.tcl \
+	authcheck.sh.in authcheck.tcl test.sh.in depcheck.sh.in

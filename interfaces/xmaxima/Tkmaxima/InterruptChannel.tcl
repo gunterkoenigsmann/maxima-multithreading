@@ -28,9 +28,11 @@
 #
 #   Read from /dev/urandom where there is one. Tcl itself has no
 #   cryptographic random source, so elsewhere (MS Windows) the token is
-#   mixed from the clock, the process id and Tcl's rand(). Guessing it would
-#   gain an attacker on the same machine little: the channel only ever
-#   receives interrupt requests, it never sends Maxima any input.
+#   mixed from the clock, the process id and Tcl's rand(). That is weaker,
+#   but it is only good for one Maxima start, and can't be tested offline:
+#   an attacker on the same machine would have to guess it, one connection
+#   per guess, in the moment between xmaxima opening its port and Maxima
+#   connecting to it. Authenticate.tcl uses the same tokens.
 #
 proc icNewToken {} {
     set token ""
@@ -86,10 +88,21 @@ proc icHandshake { key sock } {
         # Otherwise only part of the line has arrived yet.
         return
     }
+    if {![icOffer $key $sock $line]} {
+        catch {close $sock}
+    }
+}
+
+# icOffer --
+#
+#   Makes SOCK KEY's channel if LINE, the first line it sent, is the
+#   expected token. Returns 1 if it did; otherwise SOCK is left to the
+#   caller.
+#
+proc icOffer { key sock line } {
     if {![info exists ::icState($key,token)] || [icIsOpen $key] || \
             $line ne $::icState($key,token)} {
-        catch {close $sock}
-        return
+        return 0
     }
     set ::icState($key,socket) $sock
     # From now on nothing is read; only notice when Maxima closes it.
@@ -97,6 +110,7 @@ proc icHandshake { key sock } {
     if {$::icState($key,onAccept) ne ""} {
         uplevel #0 $::icState($key,onAccept)
     }
+    return 1
 }
 
 proc icWatch { key sock } {

@@ -53,6 +53,12 @@
     (setq *error-output* sock)
     (setq *terminal-io* sock)
     (setq *trace-output* sock)
+    ;; Prove we are the Maxima the frontend started; see "Authenticating
+    ;; the connection" below. Before anything else, so that the frontend
+    ;; need believe nothing it receives until then.
+    (let ((code (maxima-getenv "MAXIMA_AUTH_CODE")))
+      (when (and code (plusp (length code)))
+        (format t "<wxxml-key>~a</wxxml-key>~%" code)))
     (format t "pid=~a~%" (getpid))
     (finish-output sock)
     (setq *debug-io* sock)
@@ -113,6 +119,37 @@
     #+ccl (ccl::make-socket :remote-host host :remote-port port)
     #-(or allegro abcl clisp cmu scl sbcl gcl lispworks ecl ccl)
     (error 'not-implemented :proc (list 'open-socket host port bin))))
+
+
+;;; ---------------------------------------------------------------------
+;;; Authenticating the connection
+;;;
+;;; The frontend listens on a TCP port and starts Maxima with -s <port>.
+;;; Any program on the machine can connect to that port, and a frontend that
+;;; takes whoever connects first for Maxima sends that program everything
+;;; the user types and acts on what it sends back: xmaxima, for example,
+;;; evaluates Tcl code that arrives between \032\031tcl: and a newline, and
+;;; later kills the process whose pid it was told.
+;;;
+;;; So a frontend can pass a secret in the environment variable
+;;; MAXIMA_AUTH_CODE, and Maxima then sends the line
+;;; "<wxxml-key><secret></wxxml-key>" as the very first line of the
+;;; connection. The environment of a process can
+;;; only be read by its own user and the administrator, unlike its command
+;;; line, which anybody can see with ps. A frontend that gets anything else
+;;; as the first line closes that connection and keeps waiting.
+;;;
+;;; This proves to the frontend that the connection is Maxima's. It doesn't
+;;; prove to Maxima that the port belongs to the frontend: as the frontend
+;;; opens the port before it starts Maxima, nobody else can be listening on
+;;; it by then -- provided the frontend listens on every address "localhost"
+;;; stands for, IPv6's ::1 included where the Lisp may connect to that.
+;;;
+;;; Without MAXIMA_AUTH_CODE Maxima sends what it always did, starting with
+;;; "pid=<pid>". The line is the one wxMaxima's wxMathML.lisp sends, so
+;;; wxMaxima, which sets the same variable, recognizes it; it currently
+;;; checks the copy wxMathML.lisp sends and ignores this one.
+;;; ---------------------------------------------------------------------
 
 
 

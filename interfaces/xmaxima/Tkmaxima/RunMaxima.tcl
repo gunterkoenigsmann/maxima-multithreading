@@ -82,11 +82,14 @@ proc CMeval { w } {
     #message "send form"
 }
 
-proc acceptMaxima { win port filter } {
+proc acceptMaxima { win port } {
     set count 3
     catch { close [oget $win server] }
     while {[incr count -1 ] > 0 } {
-	if { ![catch {oset $win server [socket -server "runMaxima $win $filter" $port]} ] } {
+	# Only on the loopback interface: Maxima runs on this machine, and
+	# there is no reason to let the network reach the port.
+	if { ![catch {oset $win server [socket -server "runMaxima $win" \
+					    -myaddr localhost $port]} ] } {
 	    # puts "server sock [oget $win server]"
 	    return $port
 	} else {
@@ -101,7 +104,7 @@ proc openMaxima { win filter } {
 	return -code error [mc "Could not start Maxima - empty command"]
     }
     set port $::xmaxima_default(iLocalPort)
-    set port [acceptMaxima $win $port $filter]
+    set port [acceptMaxima $win $port]
     if { $port >= 0 } {
 	set com ""
 	set command [list eval exec]
@@ -109,6 +112,11 @@ proc openMaxima { win filter } {
 	# if {$::xmaxima_priv(platform) == "cygwin"} {lappend command "/bin/bash"}
 	append com    $::xmaxima_priv(localMaximaServer)
 	regsub PORT $com $port com
+	# Accept only the connection that proves it comes from the Maxima
+	# we start here (see Authenticate.tcl).
+	set token [icNewToken]
+	authExpect $win $token [list maximaAuthenticated $win $filter]
+	set ::env(MAXIMA_AUTH_CODE) $token
 	# Ask Maxima for a second connection we can interrupt it through
 	# (see InterruptChannel.tcl). It arrives at the same server socket.
 	set token [icNewToken]
@@ -131,20 +139,27 @@ proc openMaxima { win filter } {
 }
 
 
-proc runMaxima { win  filter sock args } {
-    linkLocal $win server maximaSocket
-    if { [info exists maximaSocket] && $maximaSocket != "" } {
-	# Maxima is already connected: this can only be its interrupt
-	# channel, which proves itself with the token -- or an impostor.
-	icCandidate $win $sock
-	return
-    }
+# runMaxima --
+#
+#   Called for each connection to the port Maxima was told to connect to.
+#   Anybody on this machine can connect there, so the connection only
+#   becomes Maxima's, or its interrupt channel, once it has proven itself
+#   (see Authenticate.tcl and InterruptChannel.tcl).
+#
+proc runMaxima { win sock args } {
+    authCandidate $win $sock
+}
+
+# maximaAuthenticated --
+#
+#   Called once SOCK has proven to be the main connection of the Maxima
+#   we started for WIN. FILTER reads what Maxima sends from now on.
+#
+proc maximaAuthenticated { win filter sock } {
+    linkLocal $win maximaSocket
     set maximaSocket $sock
-    fconfigure $sock -blocking 0 -translation lf
-    
-    # Starting from 5.47post, Maxima now outputs UTF-8
-    fconfigure $sock -encoding utf-8
-    
+    # Starting from 5.47post, Maxima now outputs UTF-8; authCandidate has
+    # configured the socket for that.
     fileevent $sock readable "$filter $win $sock"
 
     # Keep listening while Maxima may still open its interrupt channel.
@@ -182,6 +197,7 @@ proc closeMaxima { win } {
     # A Lisp without threads never opens the interrupt channel, and then
     # we are still listening for it.
     icClose $win
+    authForget $win
     closeMaximaServer $win
  
     # and then close the socket
@@ -372,8 +388,12 @@ proc runOneMaxima { win } {
                      -message [mc "Starting maxima timed out. Wait longer?"]]} {
 		continue
 	    } else {
+		set rejected [authWasRejected $win]
 		catch {closeMaxima $win}
 		set err [mc "Starting Maxima timed out"]
+		if { $rejected } {
+		    append err "\n" [mc "A connection was refused because it did not prove to be the Maxima xmaxima started. Is Maxima older than xmaxima?"]
+		}
 		if {![catch {oget $win socket} sock] && \
 			[info exists pdata(maximaInit,$sock)] } {
 		    append err : $pdata(maximaInit,$sock)
