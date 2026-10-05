@@ -1206,3 +1206,22 @@ true;
 
 block([p: product(lambda([i],i^2),i,1,n)], [p, is(p = expand(p,0,0))]);
 [lambda([i],i^2)^n, true];
+
+/* A sum with a symbolic bound evaluates its summand under facts about a
+ * fresh index: that it is an integer and lies between the bounds.  They
+ * are gone afterwards even when the summand signals an error.
+ */
+
+(kill(f), f(k) := if k > 0 then error("summand error") else 1, 0);
+0;
+
+block([before: facts()], errcatch(sum(f(k), k, 1, n)), is(facts() = before));
+true;
+
+block([before: facts()],
+  errcatch(sum(error("summand error"), k, 1, inf)),
+  is(facts() = before));
+true;
+
+(kill(f), 0);
+0;

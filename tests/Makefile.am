@@ -4,6 +4,11 @@ MAXIMA_LAYOUT_AUTOTOOLS = true
 export
 
 TESTS = threadcheck-driver-test.sh
+
+## Lisp code takes temporary facts back only through
+## WITH-TEMPORARY-ASSUMPTIONS or WITH-NEW-CONTEXT.  Textual, so it runs
+## on every configuration.
+TESTS += assumption-scope-check.sh
 CLEANFILES = 
 THREAD_BINDING_TESTS =
 THREAD_RACE_TESTS =
@@ -137,6 +142,7 @@ genericdirDATA = $(wildcard $(addprefix $(srcdir)/, README.how-to mcond_display_
 
 EXTRA_DIST = $(genericdirDATA) test.sh.in depcheck.sh.in \
              threadcheck.sh.in threadcheck-driver-test.sh README.threadcheck \
+             assumption-scope-check.sh \
              sbcl-runtime-options.sh.in README.sbcl-runtime-options \
              README.parallel-input README.parallel-loop \
              README.parallel-precision README.parallel-lifecycle \

@@ -1,6 +1,14 @@
 Maxima 5.50-post change log
 ===========================
 
+* A sum with a symbolic bound no longer leaves facts about its index
+  behind when its summand signals an error. Code that needs a fact only
+  while it works now makes it inside WITH-TEMPORARY-ASSUMPTIONS, which
+  takes back exactly the facts it added however its body exits, and in a
+  scratch context inside a parallel element. limit, rectform, sum, the
+  Laplace transform, the integrator and asksign use it, and a test checks
+  that no Lisp code calls forget or kills contexts on its own.
+
 * A parallel element reads and prints the way its caller does. On CCL
   the lisp reader and printer are per-thread, so a worker used the wrong
   package, ibase, obase and default float format, and INTERN built

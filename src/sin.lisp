@@ -1915,10 +1915,11 @@
      (return (intsum1 expr idx ll ul var2))))
 
 (defun intsum1 (expr idx ll ul var2)
-  (assume (list '(mgeqp) idx ll))
-  (if (not (eq ul '$inf))
-      (assume (list '(mgeqp) ul idx)))
-  (simplifya (list '(%sum) (integrator expr var2) idx ll ul) t))
+  (with-temporary-assumptions
+    (assume-temporarily (list '(mgeqp) idx ll))
+    (if (not (eq ul '$inf))
+        (assume-temporarily (list '(mgeqp) ul idx)))
+    (simplifya (list '(%sum) (integrator expr var2) idx ll ul) t)))
 
 (defun finds (x)
   (if (atom x)

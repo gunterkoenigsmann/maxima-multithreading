@@ -750,6 +750,57 @@
         (t '$redundant)))
     '$meaningless))
 
+;;; Temporary assumptions.
+;;;
+;;; Code that needs a fact only while it works -- the limit variable is
+;;; large, a summation index lies between its bounds -- makes it with
+;;; ASSUME-TEMPORARILY inside WITH-TEMPORARY-ASSUMPTIONS, and the scope
+;;; takes it back however the body exits, an error included.
+;;;
+;;; Two rules decide what taking it back means:
+;;;
+;;; - Only a fact this scope actually added is forgotten.  ASSUME answers
+;;;   $REDUNDANT for a fact that is already known and adds nothing, so
+;;;   there is nothing of this scope's to forget.
+;;;
+;;; - Inside a parallel element the context is shared with the other
+;;;   runners, and FORGET matches a fact by content, so it could take
+;;;   another runner's equal fact instead of this one.  There the scope
+;;;   is a scratch context of its own, and killing it removes exactly
+;;;   what it holds.  Outside a parallel element the facts go into the
+;;;   current context, as they always did, so what the user answers to
+;;;   a question asked meanwhile stays where the rest of the evaluation
+;;;   finds it.
+
+(defvar *temporary-assumptions* :no-scope
+  "The facts ASSUME-TEMPORARILY added in the innermost
+  WITH-TEMPORARY-ASSUMPTIONS, newest first.  :SCRATCH-CONTEXT in a
+  parallel element, whose scratch context holds them instead, and
+  :NO-SCOPE outside any scope.")
+
+(defun call-with-temporary-assumptions (body)
+  (if *parallel-evaluation-p*
+      (let ((*temporary-assumptions* :scratch-context))
+        (with-new-context (context)
+          (funcall body)))
+      (let ((*temporary-assumptions* nil))
+        (unwind-protect
+             (funcall body)
+          (mapc #'forget *temporary-assumptions*)))))
+
+(defun assume-temporarily (fact)
+  "ASSUME FACT until the innermost WITH-TEMPORARY-ASSUMPTIONS ends, and
+  return what ASSUME returns."
+  (when (eq *temporary-assumptions* :no-scope)
+    (error "ASSUME-TEMPORARILY called outside WITH-TEMPORARY-ASSUMPTIONS: ~S"
+           fact))
+  (let ((result (assume fact)))
+    ;; A list is the fact as learned.  A symbol ($REDUNDANT,
+    ;; $INCONSISTENT, $MEANINGLESS) means the database did not change.
+    (when (and (consp result) (listp *temporary-assumptions*))
+      (push result *temporary-assumptions*))
+    result))
+
 (defun restore-facts (factl)		; used by SAVE
   (dolist (fact factl)
     (cond ((eq (caar fact) '$kind)
@@ -837,9 +888,9 @@
 		     (t exp)))))
 
 (defun asksign-p-or-n (e)
- (let ((fact (assume `(($notequal) ,e 0))))
-   (unwind-protect ($asksign e)
-     (forget fact))))
+  (with-temporary-assumptions
+    (assume-temporarily `(($notequal) ,e 0))
+    ($asksign e)))
 
 (defun asksign01 (a)
   (let ((e (sign-prep a)))
