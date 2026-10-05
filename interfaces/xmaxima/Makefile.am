@@ -12,10 +12,6 @@ endif
 SUBDIRS = msgs $(DOC_DIR)
 if XMAXIMA_EXE
 SUBDIRS += win32
-else
-if WINKILL_EXE
-SUBDIRS += win32
-endif
 endif
 
 genericdir = $(xmaximadir)
@@ -69,6 +65,7 @@ TKSOURCES = \
 	Tkmaxima/OpenMath.tcl \
 	Tkmaxima/NConsole.tcl \
 	Tkmaxima/String.tcl \
+	Tkmaxima/InterruptChannel.tcl \
 	Tkmaxima/RunMaxima.tcl \
 	Tkmaxima/Menu.tcl \
 	Tkmaxima/Paths.tcl \

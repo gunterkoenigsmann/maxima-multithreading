@@ -1,6 +1,18 @@
 Maxima 5.50-post change log
 ===========================
 
+* Xmaxima interrupts a computation through a second socket connection
+  instead of a signal, wherever the Lisp has threads (SBCL, CCL, ECL,
+  clisp built with threads). On MS Windows this replaces winkill.exe,
+  which virus scanners tend to flag, and works without
+  MAXIMA_SIGNALS_THREAD. Any frontend that starts Maxima with -s can use
+  the same channel by passing a token in MAXIMA_INTERRUPT_TOKEN.
+
+* Remove winkill.exe, winkill_lib.dll, tclwinkill.dll, win_signals.lisp
+  and the --enable-winkill configure option. MAXIMA_SIGNALS_THREAD no
+  longer does anything. On MS Windows only a Lisp with threads can be
+  interrupted now, through the interrupt channel.
+
 * A parallel element reads and prints the way its caller does. On CCL
   the lisp reader and printer are per-thread, so a worker used the wrong
   package, ibase, obase and default float format, and INTERN built
