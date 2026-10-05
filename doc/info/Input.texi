@@ -578,6 +578,21 @@ a @code{zip} decompressor, because wxMaxima stores the worksheet itself
 uncompressed.  Should a worksheet ever be met whose text part is compressed,
 @code{load} says so instead of loading part of it.
 
+While @code{load} or @mref{batch} reads a wxMaxima file, that is a file with
+the extension @code{wxm} or @code{wxmx}, the unicode symbols wxMaxima offers
+for Maxima names are aliases of these names, as they are in wxMaxima: the
+greek letter pi stands for @code{%pi}, the double-struck italic letters i and
+e for @code{%i} and @code{%e}, the infinity sign for @code{inf}, the n-ary
+summation and product signs for @code{sum} and @code{product}, the integral
+sign for @code{integrate}, the square root sign for @code{sqrt}, and the
+logical and, or, xor, nand, nor, implication, equivalence and not signs for
+@code{and}, @code{or}, @code{xor}, @code{nand}, @code{nor}, @code{implies},
+@code{equiv} and @code{not}.  As in wxMaxima, a symbol among them that is no
+letter separates the names next to it, outside of strings and comments.  They
+stop being aliases once the file has been read, or has failed to load.  A
+symbol that already is an alias, for example because @mref{alias} made it one,
+is left as it is.
+
 Note also that structures will only be read back as structures if
 they have been defined by @code{defstruct} before the @code{load} command
 is called.

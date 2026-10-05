@@ -331,6 +331,9 @@ Other changes:
   fast on files of plain numbers
 * Bigfloat optimizations and less memory consumption
 * load() and batch() read wxMaxima .wxmx worksheets
+* While load() or batch() reads a wxMaxima .wxm or .wxmx file, the
+  unicode symbols wxMaxima offers for Maxima names (the greek letter
+  pi for %pi, the summation sign for sum, ...) are aliases of them
 * A file that is being loaded finds the files beside it, as a C
   include directive does
 * Incremental builds no longer leave stale object files behind:
