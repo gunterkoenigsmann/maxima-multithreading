@@ -150,4 +150,5 @@ EXTRA_DIST = $(genericdirDATA) test.sh.in depcheck.sh.in \
              README.parallel-header README.parallel-loading \
              README.parallel-startup \
              README.parallel-gc \
-             README.parameter-identities
+             README.parameter-identities \
+             README.interrupt-safety

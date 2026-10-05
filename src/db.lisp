@@ -27,8 +27,13 @@
 (defvar *database-lock* (%make-lock "maxima fact database"))
 
 (defmacro with-database-transaction (&body body)
-  "Protect a short database operation, never a user computation or callback."
-  `(%with-lock (*database-lock*) ,@body))
+  "Protect a short database operation, never a user computation or callback.
+A transaction is also what a user interrupt must not cut in half: a fact put
+on its nodes but not yet on its context, or taken off one but not the other,
+would be in effect without facts() listing it, or listed without being in
+effect.  So interrupts are held back until it is done."
+  `(with-interrupts-deferred
+     (%with-lock (*database-lock*) ,@body)))
 
 ;; External specials
 
