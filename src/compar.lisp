@@ -130,7 +130,7 @@
 	  ((member c (cdr $activecontexts) :test #'eq))
 	  ((member c (cdr $contexts) :test #'eq)
 	   (setq $activecontexts (mcons c $activecontexts))
-	   (activate c))
+	   (with-interrupts-deferred (activate c)))
 	  (t (merror (intl:gettext "activate: no such context ~:M") c))))
   '$done)
 
@@ -141,7 +141,7 @@
     (cond ((not (symbolp c)) (nc-err '$deactivate c))
 	  ((member c (cdr $contexts) :test #'eq)
 	   (setq $activecontexts ($delete c $activecontexts))
-	   (deactivate c))
+	   (with-interrupts-deferred (deactivate c)))
 	  (t (merror (intl:gettext "deactivate: no such context ~:M") c))))
   '$done)
 
@@ -198,7 +198,8 @@
   (cond ((not (symbolp y)) (nc-err "context assignment" y))
 	((eq y '$global)
 	 (merror (intl:gettext "context: ~M cannot be made the current context.") y))
-	((member y $contexts :test #'eq) (setq context y $context y))
+	((member y $contexts :test #'eq)
+	 (with-interrupts-deferred (setq context y $context y)))
 	(t ($newcontext y))))
 
 ;;; This function actually creates a context whose subcontext is $GLOBAL.
@@ -244,7 +245,7 @@
  (let ((done t))
   (dolist (c args)
     (if (symbolp c)
-	  (unless (killcontext c) (setq done nil))
+	  (unless (with-interrupts-deferred (killcontext c)) (setq done nil))
 	  (nc-err '$killcontext c)))
   (db-gc)
   (if done '$done '$not_done)))
@@ -657,14 +658,18 @@
                (or flag
                    (eq t (mevalp2 pat (caar pat) (cadr pat) (caddr pat)))))
       (let ((oldcontext context))
-        (if (eq oldcontext '$initial)
-            (asscontext nil '$learndata)) ; switch to context '$learndata
-        ; learn additional facts
-        (learn ($substitute (cadr tmp) tmp pat) flag)
-        (learn ($substitute (mul -1 (cadr tmp)) tmp pat) flag)
-        (when (eq oldcontext '$initial)
-          (asscontext nil oldcontext)     ; switch back to context on entry
-          ($activate '$learndata))))      ; context '$learndata is active
+        ;; Switch back however LEARN exits, error or interrupt included,
+        ;; or the session would carry on in $LEARNDATA.
+        (unwind-protect
+             (progn
+               (if (eq oldcontext '$initial)
+                   (asscontext nil '$learndata)) ; switch to context '$learndata
+               ; learn additional facts
+               (learn ($substitute (cadr tmp) tmp pat) flag)
+               (learn ($substitute (mul -1 (cadr tmp)) tmp pat) flag))
+          (when (and (eq oldcontext '$initial) (not (eq context oldcontext)))
+            (asscontext nil oldcontext)     ; switch back to context on entry
+            ($activate '$learndata)))))     ; context '$learndata is active
     nil))
 
 ;;; The value of a constant expression which can be numerically evaluated is
@@ -705,12 +710,15 @@
                (or (not (mnump (cadr patnew)))    ; not both sides of the
                    (not (mnump (caddr patnew))))) ; relation can be number
       (let ((oldcontext $context))
-        (if (eq oldcontext '$initial)
-          (asscontext nil '$learndata)) ; switch to context '$learndata
-        (learn patnew flag)             ; learn additional fact
-        (when (eq oldcontext '$initial) 
-          (asscontext nil oldcontext)   ; switch back to context on entry
-          ($activate '$learndata))))    ; context '$learndata is active
+        ;; As in LEARN-ABS: switch back however LEARN exits.
+        (unwind-protect
+             (progn
+               (if (eq oldcontext '$initial)
+                 (asscontext nil '$learndata)) ; switch to context '$learndata
+               (learn patnew flag))            ; learn additional fact
+          (when (and (eq oldcontext '$initial) (not (eq $context oldcontext)))
+            (asscontext nil oldcontext)   ; switch back to context on entry
+            ($activate '$learndata)))))   ; context '$learndata is active
     nil))
 
 (defmspec $forget (x)
@@ -3138,10 +3146,11 @@ TDNEG TDZERO TDPN) to store it, and also sets SIGN."
         (values lhs rhs))))
 
 (defun mdata (flag r x y)
-  (if flag
-      (mfact r (dintern x) (dintern y))
-      (let ((x (dinternp x)) (y (dinternp y)))
-        (when (and x y) (mkill r x y)))))
+  (with-interrupts-deferred
+    (if flag
+        (mfact r (dintern x) (dintern y))
+        (let ((x (dinternp x)) (y (dinternp y)))
+          (when (and x y) (mkill r x y))))))
 
 (defun mfact (r x y)
   (let ((f (datum (list r x y))))
@@ -3156,7 +3165,8 @@ TDNEG TDZERO TDPN) to store it, and also sets SIGN."
     (maxima-remf f y)))
 
 (defun mkind (x y)
-  (kind (dintern x) (dintern y)))
+  (with-interrupts-deferred
+    (kind (dintern x) (dintern y))))
 
 ;; To guess from the previous incarnation of this code,
 ;; each argument is assumed to be a float, bigfloat, integer, or Maxima rational.

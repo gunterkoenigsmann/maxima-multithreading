@@ -658,9 +658,10 @@
   (if (atom x) x (car x)))
 
 (defun unkind (x y)
-  (setq y (car (datum (list 'kind x y))))
-  (kcntxt y context)
-  (maxima-remf y x))
+  (with-interrupts-deferred
+    (setq y (car (datum (list 'kind x y))))
+    (kcntxt y context)
+    (maxima-remf y x)))
 
 (defun remov (fact)
   (mapc #'(lambda (arg) (remov4 fact arg)) (cdar fact)))
@@ -688,7 +689,8 @@
 	 (mapc #'(lambda (lis) (remov4 fact lis)) (cdar cl)))))
 
 (defun killframe (cl)
-  (mapc #'(lambda (dat) (uncntxt dat) (remov dat)) (sel cl data))
+  (mapc #'(lambda (dat) (with-interrupts-deferred (uncntxt dat) (remov dat)))
+	(sel cl data))
   (zl-remprop cl '+labs)
   (zl-remprop cl '-labs)
   (zl-remprop cl 'obj)
@@ -796,8 +798,9 @@
 
 (defun db-gc ()
   "Drop the database nodes that no longer carry a fact."
-  (db-gc-dobjects)
-  (db-gc-nobjects))
+  (with-interrupts-deferred
+    (db-gc-dobjects)
+    (db-gc-nobjects)))
 
 (defun db-gc-dobjects ()
   (unless (every #'dnode-live-p dobjects)
