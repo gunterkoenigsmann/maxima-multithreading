@@ -141,14 +141,18 @@
 ;;; wxMaxima uses the same scheme, with the Lisp side in its own
 ;;; wxMathML.lisp; xmaxima uses this one.
 ;;;
-;;; Is interrupting a thread this way safe, e.g. in the middle of a hash
-;;; table operation? It is exactly what SBCL itself does on Ctrl+C: its
-;;; SIGINT handler (SIGINT-HANDLER in SBCL's src/code/target-signal.lisp)
-;;; just calls INTERRUPT-THREAD on the foreground thread. The interrupt runs
-;;; in the interrupted thread itself, so nothing is accessed concurrently,
-;;; and SBCL defers it while the thread is inside WITHOUT-INTERRUPTS, which
-;;; is where SBCL keeps its own critical sections, hash table rehashing
-;;; included.
+;;; How safe is it? As safe as a Ctrl+C, and no safer. The interrupt runs
+;;; in the interrupted thread itself, so nothing is accessed concurrently:
+;;; SBCL's own SIGINT handler (SIGINT-HANDLER in SBCL's
+;;; src/code/target-signal.lisp) just calls INTERRUPT-THREAD on the
+;;; foreground thread, and on ECL, CCL and clisp this code uses those
+;;; Lisps' own thread-interrupt primitives, which likewise run the
+;;; function in the target thread. Each Lisp defers interrupts inside its
+;;; own critical sections (WITHOUT-INTERRUPTS), which protects the Lisp's
+;;; internals, hash table rehashing included -- but not Maxima's: an
+;;; interrupt can land between two updates Maxima means to make together
+;;; and leave its state inconsistent. That is a lack of atomic sections in
+;;; Maxima and affects every way of interrupting it, this one included.
 ;;; ---------------------------------------------------------------------
 
 (define-condition user-interrupt (condition) ()
