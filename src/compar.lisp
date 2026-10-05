@@ -199,7 +199,8 @@
   (cond ((not (symbolp y)) (nc-err "context assignment" y))
 	((eq y '$global)
 	 (merror (intl:gettext "context: ~M cannot be made the current context.") y))
-	((member y $contexts :test #'eq) (setq context y $context y))
+	((member y $contexts :test #'eq)
+	 (with-interrupts-deferred (setq context y $context y)))
 	(t ($newcontext y))))
 
 ;;; This function actually creates a context whose subcontext is $GLOBAL.
@@ -659,14 +660,18 @@
                (or flag
                    (eq t (mevalp2 pat (caar pat) (cadr pat) (caddr pat)))))
       (let ((oldcontext context))
-        (if (eq oldcontext '$initial)
-            (asscontext nil '$learndata)) ; switch to context '$learndata
-        ; learn additional facts
-        (learn ($substitute (cadr tmp) tmp pat) flag)
-        (learn ($substitute (mul -1 (cadr tmp)) tmp pat) flag)
-        (when (eq oldcontext '$initial)
-          (asscontext nil oldcontext)     ; switch back to context on entry
-          ($activate '$learndata))))      ; context '$learndata is active
+        ;; Switch back however LEARN exits, error or interrupt included,
+        ;; or the session would carry on in $LEARNDATA.
+        (unwind-protect
+             (progn
+               (if (eq oldcontext '$initial)
+                   (asscontext nil '$learndata)) ; switch to context '$learndata
+               ; learn additional facts
+               (learn ($substitute (cadr tmp) tmp pat) flag)
+               (learn ($substitute (mul -1 (cadr tmp)) tmp pat) flag))
+          (when (and (eq oldcontext '$initial) (not (eq context oldcontext)))
+            (asscontext nil oldcontext)     ; switch back to context on entry
+            ($activate '$learndata)))))     ; context '$learndata is active
     nil))
 
 ;;; The value of a constant expression which can be numerically evaluated is
@@ -707,12 +712,15 @@
                (or (not (mnump (cadr patnew)))    ; not both sides of the
                    (not (mnump (caddr patnew))))) ; relation can be number
       (let ((oldcontext $context))
-        (if (eq oldcontext '$initial)
-          (asscontext nil '$learndata)) ; switch to context '$learndata
-        (learn patnew flag)             ; learn additional fact
-        (when (eq oldcontext '$initial) 
-          (asscontext nil oldcontext)   ; switch back to context on entry
-          ($activate '$learndata))))    ; context '$learndata is active
+        ;; As in LEARN-ABS: switch back however LEARN exits.
+        (unwind-protect
+             (progn
+               (if (eq oldcontext '$initial)
+                 (asscontext nil '$learndata)) ; switch to context '$learndata
+               (learn patnew flag))            ; learn additional fact
+          (when (and (eq oldcontext '$initial) (not (eq $context oldcontext)))
+            (asscontext nil oldcontext)   ; switch back to context on entry
+            ($activate '$learndata)))))   ; context '$learndata is active
     nil))
 
 (defmspec $forget (x)

@@ -1,0 +1,89 @@
+Interrupting Maxima must not corrupt its state (SF bug #5614)
+=============================================================
+
+A user interrupt -- Ctrl+C, or a frontend's interrupt -- can arrive between
+any two instructions.  Maxima answers it by throwing back to its top level,
+which runs the UNWIND-PROTECT cleanups on the way out.  Several pieces of
+Maxima's own bookkeeping take more than one step, and an interrupt between two
+of those steps used to leave a half that no cleanup undid.  The bug report
+measured this on SBCL with real SIGINTs: 12% of interrupts of a loop of
+function calls, 3% of an assume/forget loop.  A harness interrupting at random
+moments found, before the fix, per 1000 interrupted runs:
+
+  a loop of function calls with block variables
+  (fpprec, simp, a parameter)                  350 corrupted (35%)
+  the same with local()                        170 (17%)
+  assume() and forget()                         50 (5%)
+  fpprec:30, fpprec:16                         155 (15%)
+  f(z):=z, kill(f)                              46 (5%)
+
+and none of 1000 per case after it.  What went wrong, and what does it now:
+
+- Block variables and function parameters (MBIND, MLAMBDA, MBINDING).  MBIND
+  assigned a variable and then recorded the value to restore; MLAMBDA set a
+  "setup finished" flag only after MBIND had returned and its cleanup undid
+  nothing without it.  An interrupt in either gap left the variable at its
+  local value for good -- simp:false or fpprec included -- and the binding
+  stacks out of step with each other.  MBIND now records first, and drops the
+  record again if the assignment never happened; the cleanups unwind the
+  stacks to a mark taken on entry (MUNBIND-TO) instead of a count; and each
+  entry is restored before it is popped, so an interrupted cleanup leaves it
+  for the next one.
+
+- local() (MLOCAL, MUNLOCAL).  A frame was pushed outside the UNWIND-PROTECT
+  meant to pop it, and MUNLOCAL popped saved properties per variable but the
+  variables only at the end.  The frame is now pushed inside, and taken down
+  one variable at a time together with its saved properties.
+
+- The top level.  An interrupt that lands in a cleanup abandons the rest of
+  it; an outer cleanup finishes the job, but at the top there is none.
+  CONTINUE and MACSYMA-TOP-LEVEL now unwind the stacks to where they stood
+  when they started (UNWIND-MAXIMA-FRAMES) before reading each input.
+
+- The fact database.  A fact is put on its context and on the nodes it
+  mentions in one WITH-DATABASE-TRANSACTION; cut in half, it is in effect
+  without facts() listing it, or the reverse.  A transaction now holds
+  interrupts back.  LEARN-ABS and LEARN-NUMER switch to $LEARNDATA and back
+  inside an UNWIND-PROTECT, so neither an interrupt nor an error leaves the
+  session in the wrong context.
+
+- fpprec.  FPPREC1 set the working precision and its constants, and MSET then
+  stored $FPPREC; in between, bfloat() used a precision fpprec did not show.
+  FPPREC1 now stores all of them, $FPPREC included, at once.
+
+- Function definitions.  MDEFINE listed a function in functions before
+  storing its definition, and kill() removed the definition well before the
+  listing: functions could list a function that has none.  Both now change
+  the two together.
+
+The tool for "together" is WITH-INTERRUPTS-DEFERRED (src/clmacs.lisp), which
+holds interrupts back until its body is done: SB-SYS:WITHOUT-INTERRUPTS on
+SBCL, CCL:WITHOUT-INTERRUPTS, MP:WITHOUT-INTERRUPTS on ECL with threads, and
+SYS:WITHOUT-INTERRUPTS on CMUCL.  Elsewhere it is a PROGN, and only the
+ordering above helps.  It is for bookkeeping only: nothing in its body can be
+interrupted, so it must never wrap user code, a question, or mathematics.
+That is also why MSET is not wrapped as a whole: an ASSIGN property may run
+user code (value_check), and $SETCHECKBREAK enters a break loop.
+
+Not covered: kill() and remove() take many steps, and an interrupted kill()
+can leave a symbol partly killed (each listing still agrees with its
+property).  Parallel workers are a separate matter (README.parallel-*).
+
+Tests, appended to tests/rtest_mset.mac and loading interrupt-safety-check.lisp:
+
+- interrupt_deferral_check() sends the running thread an interrupt from inside
+  WITH-INTERRUPTS-DEFERRED and checks it runs only after the body.
+- interrupted_cleanup_check(function_call|block_variables|block_local) makes
+  an ASSIGN property throw, as an interrupt would, while the cleanup restores
+  the variable; it checks that the state was left inconsistent and that the
+  top level's repair makes it whole again.  These are deterministic.
+- interrupt_stress_check(expr, rounds) interrupts EXPR at random moments
+  through Maxima's own debugger hook, the way Ctrl+C does, and checks the
+  binding stacks, the restored values, fpprec, the context, facts() against
+  is(), and functions.  It reports too_few_interrupts if under a quarter of
+  the rounds were actually interrupted, rather than passing vacuously.
+
+The threaded checks return skipped on a lisp without threads.  Against the
+code before the fix (with WITH-INTERRUPTS-DEFERRED and UNWIND-MAXIMA-FRAMES
+supplied as shims) the deterministic checks and all four stress checks fail.
+Measured on SBCL 2.2.9 only.
