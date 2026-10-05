@@ -14,6 +14,8 @@ depcheck.sh
 threadcheck.sh
 *-thread-bindings.sh*
 *-thread-race.sh*
+interruptcheck.sh
+*-interrupt-channel.sh*
 bin
 
 sbcl-runtime-options.sh*

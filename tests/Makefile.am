@@ -7,10 +7,12 @@ TESTS = threadcheck-driver-test.sh
 CLEANFILES = 
 THREAD_BINDING_TESTS =
 THREAD_RACE_TESTS =
+INTERRUPT_CHANNEL_TESTS =
 
 if CLISP
 THREAD_BINDING_TESTS += clisp-thread-bindings.sh
 THREAD_RACE_TESTS += clisp-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += clisp-interrupt-channel.sh
 TESTS += clisp-test.sh
 CLEANFILES += clisp-test.sh clisp.log clisp_share.log
 clisp-test.sh: test.sh Makefile
@@ -33,6 +35,7 @@ endif
 if SBCL
 THREAD_BINDING_TESTS += sbcl-thread-bindings.sh
 THREAD_RACE_TESTS += sbcl-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += sbcl-interrupt-channel.sh
 TESTS += sbcl-test.sh sbcl-runtime-options.sh
 CLEANFILES += sbcl-test.sh sbcl.log sbcl_share.log
 sbcl-test.sh: test.sh Makefile
@@ -54,6 +57,7 @@ endif
 if GCL
 THREAD_BINDING_TESTS += gcl-thread-bindings.sh
 THREAD_RACE_TESTS += gcl-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += gcl-interrupt-channel.sh
 TESTS += gcl-test.sh
 CLEANFILES += gcl-test.sh gcl.log gcl_share.log
 gcl-test.sh: test.sh Makefile
@@ -65,6 +69,7 @@ endif
 if ACL
 THREAD_BINDING_TESTS += acl-thread-bindings.sh
 THREAD_RACE_TESTS += acl-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += acl-interrupt-channel.sh
 TESTS += acl-test.sh
 CLEANFILES += acl-test.sh acl.log acl_share.log
 acl-test.sh: test.sh Makefile
@@ -76,6 +81,7 @@ endif
 if OPENMCL
 THREAD_BINDING_TESTS += openmcl-thread-bindings.sh
 THREAD_RACE_TESTS += openmcl-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += openmcl-interrupt-channel.sh
 TESTS += openmcl-test.sh
 CLEANFILES += openmcl-test.sh openmcl.log openmcl_share.log
 openmcl-test.sh: test.sh Makefile
@@ -87,6 +93,7 @@ endif
 if CCL64
 THREAD_BINDING_TESTS += ccl64-thread-bindings.sh
 THREAD_RACE_TESTS += ccl64-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += ccl64-interrupt-channel.sh
 TESTS += ccl64-test.sh
 CLEANFILES += ccl64-test.sh ccl64.log ccl64_share.log
 ccl64-test.sh: test.sh Makefile
@@ -98,6 +105,7 @@ endif
 if ECL
 THREAD_BINDING_TESTS += ecl-thread-bindings.sh
 THREAD_RACE_TESTS += ecl-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += ecl-interrupt-channel.sh
 TESTS += ecl-test.sh
 CLEANFILES += ecl-test.sh ecl.log ecl_share.log
 ecl-test.sh: test.sh Makefile
@@ -109,6 +117,7 @@ endif
 if ABCL
 THREAD_BINDING_TESTS += abcl-thread-bindings.sh
 THREAD_RACE_TESTS += abcl-thread-race.sh
+INTERRUPT_CHANNEL_TESTS += abcl-interrupt-channel.sh
 TESTS += abcl-test.sh
 CLEANFILES += abcl-test.sh abcl.log abcl_share.log
 abcl-test.sh: test.sh Makefile
@@ -121,6 +130,17 @@ endif
 ## 77 where unsupported, so Automake reports SKIP instead of a false PASS.
 TESTS += $(THREAD_BINDING_TESTS) $(THREAD_RACE_TESTS)
 CLEANFILES += $(THREAD_BINDING_TESTS) $(THREAD_RACE_TESTS)
+
+## Interrupt Maxima through the channel src/server.lisp opens for xmaxima,
+## on every configured Lisp.  Exits 77 (SKIP) on a Lisp without threads, or
+## when there is no tclsh.
+TESTS += $(INTERRUPT_CHANNEL_TESTS)
+CLEANFILES += $(INTERRUPT_CHANNEL_TESTS)
+
+$(INTERRUPT_CHANNEL_TESTS): interruptcheck.sh Makefile
+	echo "#!/bin/sh" > $@
+	echo "exec ./interruptcheck.sh $(patsubst %-interrupt-channel.sh,%,$@)" >> $@
+	chmod +x "$@"
 
 $(THREAD_BINDING_TESTS): threadcheck.sh Makefile
 	echo "#!/bin/sh" > $@
@@ -137,6 +157,7 @@ genericdirDATA = $(wildcard $(addprefix $(srcdir)/, README.how-to mcond_display_
 
 EXTRA_DIST = $(genericdirDATA) test.sh.in depcheck.sh.in \
              threadcheck.sh.in threadcheck-driver-test.sh README.threadcheck \
+             interruptcheck.sh.in interruptcheck.tcl \
              sbcl-runtime-options.sh.in README.sbcl-runtime-options \
              README.parallel-input README.parallel-loop \
              README.parallel-precision README.parallel-lifecycle \
