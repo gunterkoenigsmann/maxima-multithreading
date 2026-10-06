@@ -1213,3 +1213,17 @@ true$
 
 (kill(all),0);
 0$
+
+/* MPRINT breaks a line at $LINEL using *CHRPS*, the column it counts as
+   it writes.  Shared, two runners writing one-dimensional output counted
+   each other's characters: measured, 8 of 32 parallel renderings of one
+   expression differed from the serial one.  Each runner starts its own
+   count, and an item gets the same one whether a worker or the caller
+   takes it -- which is why the binding is per runner and not per thread:
+   with it per thread, four items gave [97, 0, 97, 0]. */
+
+block([r], ?\*chrps\*: 97,
+  r: parallel_makelist(?\*chrps\*, %zz, 1, 4),
+  ?\*chrps\*: 0,
+  r);
+[0, 0, 0, 0]$

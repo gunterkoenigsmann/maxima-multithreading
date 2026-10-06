@@ -681,6 +681,20 @@ than for the computation."
      ;; Bind inside the runner; new threads do not inherit LET bindings.
      (let ((*parallel-input-forbidden* t)
            (*parallel-evaluation-p* t)
+           ;; *CHRPS* (mgrind.lisp) is the column MPRINT counts as it
+           ;; writes, so that it can break a line at $LINEL.  Shared, two
+           ;; runners writing one-dimensional output counted each other's
+           ;; characters and broke their lines in the wrong places:
+           ;; measured, 8 of 32 parallel renderings of one expression
+           ;; differed from the serial one, none with this binding.  Zero
+           ;; rather than the caller's value, as STRGRIND already binds it
+           ;; for string output: once several runners share a stream none
+           ;; of them can know where the cursor is, and it is bound here
+           ;; rather than per thread so that an item renders the same
+           ;; whoever takes it.  The two-dimensional path does not use it,
+           ;; and is unaffected either way (measured, 32 of 32 equal).
+           ;; Same shape as MYPRINC's column in mactex.lisp.
+           (*chrps* 0)
            ;; Include the runner's own loop variables in nested capture.
            (*private-maxima-variables* (mapcar #'first (job-captured job)))
            ;; MLAMBDA mutates the array and its fill pointer. Copy after

@@ -11,12 +11,9 @@
 
 (in-package :maxima)
 
-;;; Current character position on the output line.  Used by the
-;;; grinding/sizing printer to track where the next character will
-;;; appear, so that mprint can decide when to break a line and so
-;;; that strgrind (in grind.lisp) can buffer string-mode output via
-;;; styo/sterpri.
-(defvar *chrps* 0)
+;;; *CHRPS*, the current character position on the output line, is
+;;; declared in globals.lisp: src/parallel.lisp binds it per runner and
+;;; is compiled before this file.
 
 ;;; Number of characters left on the current output line, given the
 ;;; current position chrps and Maxima's $linel.
