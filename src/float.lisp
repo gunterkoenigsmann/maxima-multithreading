@@ -1281,6 +1281,13 @@
        ;; update the hash table with a new value computed via
        ;; COMPUTE-FORM.  This value is returned.
        ;;
+       ;; There is one table per constant for the whole session, and
+       ;; parallel runners use it at the same time, so every access
+       ;; holds the table's lock.  The value is computed outside it: a
+       ;; runner asking for another precision then never waits behind a
+       ;; long computation, and two runners that miss together both
+       ;; compute the same number and store it twice, which is harmless.
+       ;;
        ;; For debugging, we define a function to get the hash table
        ;; and a function to clear the hash table of all entries.
        (let ((table-getter-name
@@ -1288,17 +1295,20 @@
              (table-clearer-name
                (intern (concatenate 'string
                                     "CLEAR_" (string name) "_TABLE")))
-             (table-name (gensym (concatenate 'string "TABLE-" (string name)))))
-         `(let ((,table-name (make-hash-table)))
+             (table-name (gensym (concatenate 'string "TABLE-" (string name))))
+             (lock-name (gensym (concatenate 'string "LOCK-" (string name)))))
+         `(let ((,table-name (make-hash-table))
+                (,lock-name (%make-lock ,(format nil "maxima ~(~a~) cache"
+                                                 name))))
             (defun ,name ()
-              (let ((value (gethash fpprec ,table-name)))
-                (if value
-	            value
-	            (setf (gethash fpprec ,table-name) ,compute-form))))
+              (or (%with-lock (,lock-name) (gethash fpprec ,table-name))
+                  (let ((value ,compute-form))
+                    (%with-lock (,lock-name)
+                      (setf (gethash fpprec ,table-name) value)))))
             (defun ,table-getter-name ()
               ,table-name)
             (defun ,table-clearer-name ()
-              (clrhash ,table-name))))))
+              (%with-lock (,lock-name) (clrhash ,table-name)))))))
   (memoize fpe (cdr (fpe1)))
   (memoize fppi (cdr (fppi1)))
   (memoize fpgamma (cdr (fpgamma1)))
