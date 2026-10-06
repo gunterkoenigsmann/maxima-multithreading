@@ -390,3 +390,52 @@ A^3-3*A^2+3*A-W;
 
 letsimp (expand ((A + W)^3));
 A^3+3*A^2+3*A+W;
+
+/* letsimp, remlet and letrules work on a rule package's tree in NISTREE
+   (with NISRULES and NISFLAG), which they now bind.  letsimp set the
+   global value instead: a rule whose predicate calls letsimp with
+   another package made the outer letsimp go on with that package's
+   rules, and parallel calls applied each other's rules. */
+(let ([ua, ub], nis_pkb),
+ nis_pred () := (letsimp (ua, nis_pkb), true),
+ let ([wa, wb, nis_pred], nis_pka),
+ let ([va, vb], nis_pka),
+ 0);
+0;
+
+letsimp (wa*za + va*ya, nis_pka);
+wb*za + vb*ya;
+
+(let ([ua, uc], nis_pkc),
+ nis_f (k) := block ([e: sum (ua^j*xv^j, j, 1, 20) + k],
+                     if evenp (k) then letsimp (e, nis_pkb)
+                     else letsimp (e, nis_pkc)),
+ is (parallel_makelist (nis_f (k), k, 1, 24)
+     = makelist (nis_f (k), k, 1, 24)));
+true;
+
+/* Parallel remlet on separate packages: each removes its own rules. */
+(nis_pk (k) := concat (nis_rp, k),
+ for k thru 8 do (apply (let, [[concat (xa, k), concat (xb, k)], nis_pk (k)]),
+                  for j thru 10 do
+                    apply (let, [[concat (ya, k, j)*concat (xa, k), j],
+                                 nis_pk (k)])),
+ nis_rl (k) := (for j thru 10 do
+                  apply (remlet, [concat (ya, k, j)*concat (xa, k), nis_pk (k)]),
+                k),
+ [parallel_makelist (nis_rl (k), k, 1, 8),
+  makelist (apply (letsimp, [concat (ya, k, 1)*concat (xa, k), nis_pk (k)]),
+            k, 1, 8)]);
+[[1, 2, 3, 4, 5, 6, 7, 8],
+ [xb1*ya11, xb2*ya21, xb3*ya31, xb4*ya41, xb5*ya51, xb6*ya61, xb7*ya71,
+  xb8*ya81]];
+
+/* No thread needed: letrules leaves the global tree and rules alone. */
+(letrules (nis_pka), [?nistree, ?nisrules]);
+[false, false];
+
+(for p in [nis_pka, nis_pkb, nis_pkc] do apply (remlet, [all, p]),
+ for k thru 8 do apply (remlet, [all, nis_pk (k)]),
+ kill (nis_pred, nis_f, nis_pk, nis_rl),
+ 0);
+0;
