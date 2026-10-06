@@ -681,6 +681,22 @@ than for the computation."
      ;; Bind inside the runner; new threads do not inherit LET bindings.
      (let ((*parallel-input-forbidden* t)
            (*parallel-evaluation-p* t)
+           ;; Two flags, because they answer two questions that agree here
+           ;; and will not always.  *PARALLEL-EVALUATION-P* is "is an item
+           ;; of CALL-IN-PARALLEL running": what a guard that refuses to
+           ;; read input or to load a file needs to know.
+           ;; *SESSION-STATE-SHARED-P* is "may another thread be looking
+           ;; at the session's facts, contexts and option variables": what
+           ;; a computation needs to know before it assumes something
+           ;; temporarily, or takes an assumption back.  Every context
+           ;; that runs Maxima code in a thread other than the session's
+           ;; own has to bind it -- including a thread started by an API
+           ;; that is not CALL-IN-PARALLEL, which would not be a parallel
+           ;; element and would leave the first flag NIL.  OWNS-SESSION-
+           ;; STATE-P (src/globals.lisp) is the reading side, and
+           ;; WITH-PRIVATE-FACTS (src/maxmac.lisp) the shape its callers
+           ;; want.
+           (*session-state-shared-p* t)
            ;; Include the runner's own loop variables in nested capture.
            (*private-maxima-variables* (mapcar #'first (job-captured job)))
            ;; MLAMBDA mutates the array and its fill pointer. Copy after

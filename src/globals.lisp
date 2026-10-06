@@ -936,6 +936,18 @@
 (defvar *parallel-evaluation-p* nil
   "Non-NIL while evaluating an item of CALL-IN-PARALLEL.")
 
+(defvar *session-state-shared-p* nil
+  "Non-NIL while Maxima code runs where the session's state is shared.
+See OWNS-SESSION-STATE-P and the comment in src/parallel.lisp.")
+
+(defun owns-session-state-p ()
+  "Whether this code may treat the session's Maxima state -- its facts,
+its contexts, its option variables -- as its own, to change and to change
+back.  False wherever another thread may be looking at the same state.
+Ask this, not whether a parallel evaluation is running: the two answers
+agree today and are different questions.  src/parallel.lisp says why."
+  (not *session-state-shared-p*))
+
 (defvar *private-maxima-variables* nil
   "Dynamically private Maxima variables to capture for nested runners.")
 
