@@ -5044,12 +5044,16 @@ ignoring dummy variables and array indices."
 	  ((eq dir '$minus)
 	   (setq exp (maxima-substitute (m+ val (m// -1 newvar)) var exp)))
 	  (t (merror (intl:gettext "gruntz: direction must be 'plus' or 'minus'; found: ~M") dir)))
+	  ;; CX becomes the current context, and that alone makes its facts
+	  ;; visible here.  It is not activated as well: activation counts CX and
+	  ;; every context above it in the shared marks, which shows their facts
+	  ;; -- this limit's own VAR > *LARGE-POSITIVE-NUMBER* among them -- to
+	  ;; every other thread until CX is killed.
 	  (let ((cx ($supcontext)))
 	   	    (unwind-protect
  	         (progn
 				  (mfuncall '$assume (ftake 'mlessp *large-positive-number* newvar)) ; *large-positive-number* < newvar
 				  (mfuncall '$assume (ftake 'mlessp *large-positive-number* 'prin-inf)) ; *large-positive-number* < prin-inf
-				  (mfuncall '$activate cx) ;not sure this is needed, but OK	
 				  (setq exp (resimplify exp)) ;simplify in new context
                   (setq exp (resimp-extra-simp (sratsimp exp))) ;additional simplifications
 				  (limitinf exp newvar)) ;compute & return limit
