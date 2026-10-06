@@ -480,10 +480,14 @@ than for the computation."
 ;;; an already-empty LOCLIST for ever: an error in one element left the
 ;;; whole run spinning at full CPU, on about one run in five.
 ;;;
-;;; MUNLOCAL also pops MPROPLIST and FACTLIST, which MLOCAL pushes
-;;; alongside LOCLIST.  They are not bound here because nothing yet
-;;; measures what a local() inside a parallel body does to them; a body
-;;; using local() is still to be checked rather than assumed safe.
+;;; MUNLOCAL also pops MPROPLIST and FACTLIST, which MLOCAL pushes in
+;;; step with LOCLIST: the saved properties and facts of each variable
+;;; local() hides.  Shared, a runner leaving its block would pop what
+;;; another runner pushed last and give its variable that one's
+;;; definition and facts -- 24 parallel bodies, each local() on a
+;;; variable of its own, left 228 of 240 definitions on the wrong
+;;; variable in ten runs.  The properties themselves stay on the shared
+;;; symbols, so two bodies still must not localize the same name.
 ;;;
 ;;; The context variables are here because WITH-NEW-CONTEXT
 ;;; (src/maxmac.lisp) makes a scratch context named by a gensym, works
@@ -536,6 +540,7 @@ than for the computation."
   (remove-duplicates
    (append *private-maxima-variables*
    (list* '*private-maxima-variables* '$values '$myoptions 'bindlist 'mspeclist 'loclist '*mlambda-call-stack*
+         'mproplist 'factlist
          '$context 'context '$contexts '$activecontexts
          ;; A new worker's environment initially sees global precision.
          ;; Capture all eight values from its caller, including temporary
