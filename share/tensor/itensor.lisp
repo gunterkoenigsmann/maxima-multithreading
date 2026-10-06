@@ -2678,14 +2678,22 @@ indexed objects")) (t (return (flush (arg 1) l nil))))))
 		(t (ncons e)))))
 	e))
 
-(let (dumx)
-  (defun itensor-cleanup (a nn) (setq itensor-n nn dumx nil) (cleanup1 a))
- 
-  (defun cleanup1 (a)
-    (and a (setq dumx (implode (nconc (exploden $idummyx)    ;Keep proper order of
-				      (exploden itensor-n))) itensor-n (1+ itensor-n))          ;indices
-	(cond ((eq dumx (car a)) (cleanup1 (cdr a)))
-	        (t (cons (cons (car a) dumx) (cleanup1 (cdr a))))))))
+;; ITENSOR-CLEANUP numbers the dummies in a binding of ITENSOR-N of its own,
+;; so a parallel RENAME cannot advance it, and leaves the last number in
+;; ITENSOR-N afterwards, where the components code continues from it.
+(defun itensor-cleanup (a nn)
+  (let (result last)
+    (let ((itensor-n nn))
+      (setq result (cleanup1 a) last itensor-n))
+    (setq itensor-n last)
+    result))
+
+(defun cleanup1 (a)
+  (and a (let ((dumx (implode (nconc (exploden $idummyx)  ;Keep proper order of
+                                     (exploden itensor-n)))))      ;indices
+           (setq itensor-n (1+ itensor-n))
+           (cond ((eq dumx (car a)) (cleanup1 (cdr a)))
+                 (t (cons (cons (car a) dumx) (cleanup1 (cdr a))))))))
 ;Make list of dotted pairs indicating substitutions i.e. ((a . #1) (b . #2))
 
 (defun itensor-sort (l) (cond ((cdr l) (sort l 'less)) (t l)))
