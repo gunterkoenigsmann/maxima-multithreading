@@ -907,16 +907,36 @@ length(sublist(makelist(is(f[i]=i^2), i, 1, 300), lambda([x], x#true)));
 
 [18, true]$
 
-/* The sparse determinant keeps its matrix in *MAT* too.  Only that is
-   checked here: its own routines still assign *ROW* and *COL* (through
-   TMLATTICE in linnew.lisp) and other globals of their own, which this
-   change leaves alone.  It also fails on larger matrices (issue #62);
-   this one is within what it gets right. */
+/* The sparse determinant keeps its matrix in *MAT* too. */
 (s0: scratch_of(['?\*mat\*]),
  [block([sparse: true], determinant(matrix([1, 2], [3, 4]))),
   same_scratch(s0, scratch_of(['?\*mat\*]))]);
 
 [-2, true]$
+
+/* Its own routines have more: SPRDET's row and column orders and its
+   current block, TDBU's sign and pivoted matrix (which NEWMAT fills by
+   name), and TMLATTICE's lattice in linnew.lisp.  Each call binds them.
+   Assigned globally, 48 parallel sparse determinants failed with Lisp
+   errors in 10 regions of 10 (GitHub issue #78).  A 3 x 3 matrix with
+   no zero reaches all of them. */
+(sparse_scratch() :=
+   scratch_of(['?\*ptr\*, '?\*ptc\*, '?\*blk\*, '?\*detsign\*, '?x\*,
+               '?\*b\*, '?\*row\*, '?\*col\*]),
+ s0: sparse_scratch(),
+ [block([sparse: true], determinant(matrix([1, 2, 3], [4, 5, 6], [7, 8, 10]))),
+  same_scratch(s0, sparse_scratch())]);
+
+[-3, true]$
+
+(sparse_m(k) := genmatrix(lambda([r, c],
+                            if mod(r*c + k, 3) = 0 then 0 else r + c*k),
+                          6, 6),
+ sparse_det(k) := block([sparse: true], determinant(sparse_m(k))),
+ errcatch(is(parallel_makelist(sparse_det(k), k, 1, 48)
+             = makelist(determinant(sparse_m(k)), k, 1, 48))));
+
+[true]$
 
 (s0: elimination_scratch(),
  [rank(matrix([1, 2, 3], [2, 4, 6], [1, 0, 1])),

@@ -649,7 +649,9 @@
 ;;(R2 C2) ...) WHERE R R'S ARE ROWS AND
 ;;C'S ARE COLUMNS.
 
-(defun tmlattice (a3 xrow xcol *n*)
+;; *B*, *ROW* and *COL* belong to one call: parallel runners compute
+;; sparse determinants at the same time.
+(defun tmlattice (a3 xrow xcol *n* &aux *b* *row* *col*)
   (setq a3 (get-array-pointer a3))
   (setq xrow (get-array-pointer xrow))
   (setq xcol (get-array-pointer xcol))
