@@ -32,7 +32,7 @@
 (when (eq 'long-float (type-of 1l0))
   (pushnew :has-distinct-long-float *features*))
 
-(defvar *variable-initial-values* (make-hash-table)
+(defvar *variable-initial-values* (%make-hash-table)
   "Hash table containing all Maxima defmvar variables and their
   initial values")
 
@@ -1562,11 +1562,11 @@
 ;; Build hash tables '*flonum-op*' and '*big-float-op*' that map Maxima
 ;; function names to their corresponding Lisp functions.
 
-(defvar *flonum-op* (make-hash-table :size 64)
+(defvar *flonum-op* (%make-hash-table :size 64)
   "Hash table mapping a maxima function to a corresponding Lisp function
   to evaluate the maxima function numerically with flonum precision.")
 
-(defvar *big-float-op* (make-hash-table)
+(defvar *big-float-op* (%make-hash-table)
   "Hash table mapping a maxima function to a corresponding Lisp function
   to evaluate the maxima function numerically with big-float
   precision.")
@@ -1653,7 +1653,10 @@
 (defvar *quit-on-error* nil
   "If non-NIL, Maxima will quit on the first error.")
 
-;; A list of temporary files that can be deleted on leaving maxima
+;; A list of temporary files that can be deleted on leaving maxima.
+;; Plain rather than %MAKE-HASH-TABLE on purpose: *TEMP-FILES-LOCK* in
+;; plot.lisp guards both writing this and mapping over it, and a
+;; synchronized table would cover only the first of those.
 (defvar *temp-files-list* (make-hash-table :test 'equal))
 
 ;;------------------------------------------------------------------------

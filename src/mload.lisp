@@ -941,7 +941,7 @@
   - If T or any other value, always use the cache."
   :setting-list (nil t $auto))
 
-(defvar *directory-cache* (make-hash-table :test #'equal)
+(defvar *directory-cache* (%make-hash-table :test #'equal)
   "The hash table that holds the cache for the DIRECTORY-CACHED function.")
 
 (defvar *directory-cache-mdelta* 3
@@ -1347,7 +1347,10 @@
                     (do-cache
                       ;; Write into the cache.
                       (dbg "write")
-                      (setq rcache (make-hash-table :test #'equal))
+                      ;; Reachable from every thread once it is in
+                      ;; *DIRECTORY-CACHE*, so it needs the same
+                      ;; treatment as the table it is stored in.
+                      (setq rcache (%make-hash-table :test #'equal))
                       (setf (gethash query-dir *directory-cache*) (cons dirs rcache)))
                     (t
                       ;; Don't write into the cache.

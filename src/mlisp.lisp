@@ -66,6 +66,10 @@ or if apply is being used are printed.")
 (defconstant +hasher-mod+ 32768
   "Modulus used by the HASHER function - must be a power of 2.")
 
+;; Left plain: WITH-THREAD-LOCAL-ENVIRONMENT rebinds this to a fresh
+;; table per thread, and the eviction in MAPPLY1 picks a victim while
+;; mapping over the table, which no synchronized table makes safe.  A
+;; table per thread answers both at once.
 (defvar *lambda-expr-funs* (make-hash-table :test 'eq)
   "Compiled functions for the Lisp lambda expressions applied by MAPPLY1,
   keyed by the expression itself. Used to reduce compiler invocations.")

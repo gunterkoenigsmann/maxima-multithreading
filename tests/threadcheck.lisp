@@ -31,6 +31,14 @@
                                  (:skipped 77)
                                  ((nil) 1)
                                  (otherwise 0)))
+                  ;; Same gate as the race: the claim that
+                  ;; %MAKE-HASH-TABLE hands back a table several threads
+                  ;; may write only means something where there are
+                  ;; threads, and a lisp without them reports :SKIPPED
+                  ;; from both.
+                  (when (zerop status)
+                    (unless (run 'check-synchronized-hash-table)
+                      (setf status 1)))
                   #+(and ecl threads)
                   (when (zerop status)
                     (load (merge-pathnames "threadcheck-ecl-regression.lisp" directory))

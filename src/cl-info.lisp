@@ -1,10 +1,19 @@
 (in-package :cl-info)
 
-(defvar *info-tables* (make-hash-table :test 'equal))
+;; Written after load: loading a documentation index calls
+;; ENSURE-INFO-TABLES, measured growing this table from 1 to 2 when
+;; share/logic/doc/logic-index.lisp is loaded.  Synchronized for that
+;; insert; the searches below map over the table, and that half still
+;; wants the loading to stop first -- see #41 and #131.
+(defvar *info-tables* (maxima::%make-hash-table :test 'equal))
 
 ;; Gcl doesn't like equalp hashtables.
+;; LOAD-HTML-INDEX clears this and refills it, so a describe() running
+;; in another thread while an index loads can search an empty table.
+;; Synchronizing the table does not fix that; it keeps the table itself
+;; intact while it happens.
 (defvar *html-index*
-  (make-hash-table :test #'equal)
+  (maxima::%make-hash-table :test #'equal)
   "Hash table for looking up which html file contains the
   documentation.  The key is the topic we're looking for and the value
   is a cons consisting of the html file and the id for the key.")

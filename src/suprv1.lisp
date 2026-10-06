@@ -470,11 +470,11 @@
 ;;; the end of init-cl.lisp, after all symbols have been defined.
 
 (defvar *builtin-symbols* nil)
-(defvar *builtin-symbol-props* (make-hash-table))
+(defvar *builtin-symbol-props* (%make-hash-table))
 (defvar *builtin-$props* nil)
 (defvar *builtin-$rules* nil)
 (defvar *builtin-symbols-with-values* nil)
-(defvar *builtin-symbol-values* (make-hash-table))
+(defvar *builtin-symbol-values* (%make-hash-table))
 
 (defun kill1-atom (x)
   (let ((z (or (and (member x (cdr $aliases) :test #'equal) (get x 'noun)) (get x 'verb))))
