@@ -126,6 +126,19 @@ true$
       else is(parallel_worker_items() = 0)]);
 [[], true]$
 
+/* CHECKSIGNTM (irinte, and the hypergeometric code) notes whether the
+   expression it is asked about is a product, then hands it on: a product
+   gets the signs of its factors multiplied, anything else asksign.  Each
+   call binds that note.  Shared, a sum read another call's "product" and
+   was taken apart as one -- measured on SBCL, 3 of 3 runs failed with Lisp
+   errors.  -%pi is a product, 5 - %pi is not. */
+
+(sign_note(k) := block([?\*checkcoefsignlist\*: []],
+   ?checksigntm(if evenp(k) then -%pi else 5 - %pi)),
+ errcatch(is(parallel_makelist(makelist(sign_note(k), j, 1, 200), k, 1, 16)
+             = makelist(makelist(sign_note(k), j, 1, 200), k, 1, 16))));
+[true]$
+
 /* --- assumptions ---
 
    An assumption made before a parallel region is in force inside it,
