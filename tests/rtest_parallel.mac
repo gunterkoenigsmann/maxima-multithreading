@@ -1041,6 +1041,29 @@ sublist(makelist(i, i, 1, 48), lambda([i], is(ratsimp(r[i] - e(i)) # 0)));
 (kill(all), 0);
 0$
 
+/* optimize() sorts subexpressions into hash buckets, *SUBEXP*, and
+   each call empties them first.  One array for all callers lets every
+   call empty the others' buckets.  Each call binds its own. */
+
+/* No thread needed: a call leaves the global array alone. */
+(?\*subexp\*[5]: subexp_marker,
+ r: optimize(sin(x)^2 + sin(x)),
+ [?\*subexp\*[5], string(r)]);
+[subexp_marker, "block([%1],%1:sin(x),%1^2+%1)"]$
+
+(?\*subexp\*[5]: false, 0);
+0$
+
+/* The generated %1, %2 are uninterned, so compare the printed forms */
+(e(i) := sin(x + i)^2 + cos(x + i)^2*sin(x + i)
+         + sqrt((x + i)^3 + 1)/(1 + sqrt((x + i)^3 + 1)),
+ errcatch(is(parallel_makelist(string(optimize(e(i))), i, 1, 48)
+             = makelist(string(optimize(e(i))), i, 1, 48))));
+[true]$
+
+(kill(all), 0);
+0$
+
 /* Live roots and exact arithmetic across observed GC (GitHub issue #36). */
 (kill(all),0);
 0$
