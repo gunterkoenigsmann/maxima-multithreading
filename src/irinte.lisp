@@ -73,8 +73,9 @@
      (cond (assoclist
 	    (setq e (cdras 'e assoclist) f (cdras 'f assoclist)
 		  g (cdras 'g assoclist) r0 (cdras 'r0 assoclist))
-	    (assume `(($notequal) ,e 0))
-	    (return (intir3-r0test assoclist x e f g r0))))
+	    (return (with-temporary-assumptions
+		      (assume-temporarily `(($notequal) ,e 0))
+		      (intir3-r0test assoclist x e f g r0)))))
      (return nil)))
 
 (defun intir3-r0test (assoclist x e f g r0)

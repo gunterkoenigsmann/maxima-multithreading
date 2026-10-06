@@ -8,12 +8,10 @@
 (defmspec $assuming (e)
   (let*
     ((args (margs e))
-     (assumptions (mapcar #'meval (extract-assumptions (first args))))
-     (my-context (mfuncall '$supcontext)))
-    (meval `(($assume) ,@assumptions))
-    (unwind-protect
-      (first (last (mapcar #'(lambda (e) (mfuncall '|$meval1| e)) (rest args))))
-      (mfuncall '$killcontext my-context))))
+     (assumptions (mapcar #'meval (extract-assumptions (first args)))))
+    (with-new-context (context)
+      (meval `(($assume) ,@assumptions))
+      (first (last (mapcar #'(lambda (e) (mfuncall '|$meval1| e)) (rest args)))))))
 
 (defun extract-assumptions (x)
   (if ($listp x) (rest x) (list x)))

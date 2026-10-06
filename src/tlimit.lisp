@@ -351,14 +351,12 @@ but that condition is not checked."
             (cond
               ((null ans)
                ;; direct substitution failed, transform limit point to inf or minf and try again
-               (let ((cntx ($supcontext)) (g (gensym)))
-                 (unwind-protect
-                   (progn
-                      (putprop g t 'internal) ;ask no questions about the gensym variable
-                      (assume (ftake 'mgreaterp g *large-positive-number*))
-                      (limit-sum-of-powers 
-                          (resimplify (maxima-substitute (div 1 g) x e)) g (if (eq pt '$zeroa) '$inf '$minf)))
-                    ($killcontext cntx)))) 
+               (let ((g (gensym)))
+                 (with-new-context (context)
+                   (putprop g t 'internal) ;ask no questions about the gensym variable
+                   (assume (ftake 'mgreaterp g *large-positive-number*))
+                   (limit-sum-of-powers 
+                       (resimplify (maxima-substitute (div 1 g) x e)) g (if (eq pt '$zeroa) '$inf '$minf)))))
               (t
                ;; direct substitution succeeded--when the limit is zero, use zero-fixup
                (setq ans (car ans))

@@ -509,30 +509,26 @@
       0)
 
   (let ((gensym-ind (gensym)))
-    (if (apparently-integer low) 
-	(meval `(($declare) ,gensym-ind $integer)))
-    (assume (list '(mgeqp) gensym-ind low))
-    (if (not (eq hi '$inf))
-	(assume (list '(mgeqp) hi gensym-ind)))
-    (let ((msump t) (foo) (summand))
-      (setq summand
-            (if (and (not (atom expr)) (get (caar expr) 'mevalsumarg-macro))
-		(funcall (get (caar expr) 'mevalsumarg-macro) expr)
-		expr))
-      (let (($simp nil))
-        (setq summand ($substitute gensym-ind ind summand)))
-      (setq foo (mbinding ((list gensym-ind) (list gensym-ind))
-                          (resimplify (meval summand))))
-      ;; At this point we do not switch off simplification to preserve
-      ;; the achieved simplification of the summand (DK 02/2010).
-      (let (($simp t))
-	(setq foo ($substitute ind gensym-ind foo)))
-      (if (not (eq hi '$inf))
-	  (forget (list '(mgeqp) hi gensym-ind)))
-      (forget (list '(mgeqp) gensym-ind low))
+    (with-temporary-assumptions
       (if (apparently-integer low)
-	  (meval `(($remove) ,gensym-ind $integer)))
-      foo)))
+          (assume-temporarily `(($kind) ,gensym-ind $integer)))
+      (assume-temporarily (list '(mgeqp) gensym-ind low))
+      (if (not (eq hi '$inf))
+          (assume-temporarily (list '(mgeqp) hi gensym-ind)))
+      (let ((msump t) (foo) (summand))
+        (setq summand
+              (if (and (not (atom expr)) (get (caar expr) 'mevalsumarg-macro))
+                  (funcall (get (caar expr) 'mevalsumarg-macro) expr)
+                  expr))
+        (let (($simp nil))
+          (setq summand ($substitute gensym-ind ind summand)))
+        (setq foo (mbinding ((list gensym-ind) (list gensym-ind))
+                            (resimplify (meval summand))))
+        ;; At this point we do not switch off simplification to preserve
+        ;; the achieved simplification of the summand (DK 02/2010).
+        (let (($simp t))
+          (setq foo ($substitute ind gensym-ind foo)))
+        foo))))
 
 (defun apparently-integer (x)
   (or ($integerp x) ($featurep x '$integer)))

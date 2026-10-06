@@ -47,6 +47,13 @@
          (progn ,@forms)
          ($killcontext ,my-context)))))
 
+;; Run BODY so that every fact ASSUME-TEMPORARILY adds inside it is gone
+;; again afterwards, however BODY exits.  How a temporary fact is taken
+;; back is decided in one place, CALL-WITH-TEMPORARY-ASSUMPTIONS in
+;; compar.lisp.
+(defmacro with-temporary-assumptions (&body body)
+  `(call-with-temporary-assumptions #'(lambda () ,@body)))
+
 ;; For creating a macsyma evaluator variable binding context.
 ;; (MBINDING (VARIABLES &OPTIONAL VALUES FUNCTION-NAME)
 ;;    ... BODY ...)

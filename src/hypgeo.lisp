@@ -1278,17 +1278,14 @@
 	    ;; for the paratemter a and we have checked the sign.
 	    ;; So it is the best to add a rule for the sign of psey.
 
-	    (mfuncall '$assume `((mgreaterp) ,*hypgeo-par* 0))
-
+	    ;; The rule lasts until the calculation is finished.
 	    (return
-	      (prog1
+	      (with-temporary-assumptions
+		(assume-temporarily `((mgreaterp) ,*hypgeo-par* 0))
 		(maxima-substitute
 		  (mul -1 s)
 		  *hypgeo-par*
-		  (ltscale u c 0 e f))
-
-		;; We forget the rule after finishing the calculation.
-		(mfuncall '$forget `((mgreaterp) ,*hypgeo-par* 0))))))
+		  (ltscale u c 0 e f))))))
 
      (return
        (setq *hyp-return-noun-flag* 'other-defint-to-follow-negtest))))

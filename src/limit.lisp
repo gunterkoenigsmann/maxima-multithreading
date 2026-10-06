@@ -113,17 +113,11 @@
 		  (t 
 		    (some #'(lambda (q) (indefinite-integral-p q x)) (cdr e)))))
 
-;; The context LIMIT is called in is shared with every other runner of a
-;; parallel computation, and they make the same assumptions about the same
-;; variable: ASSUME finds another runner's fact already there and adds none
-;; of its own, and when that runner forgets its fact this one goes on without
-;; it.  So inside a parallel element each call works in a scratch context of
-;; its own, and killing that context removes exactly the facts in it.
+;; The assumptions LIMIT-CONTEXT makes about the limit variable last for
+;; this call: WITH-TEMPORARY-ASSUMPTIONS takes them back on the way out.
 (defun toplevel-$limit (&rest args)
-  (if *parallel-evaluation-p*
-      (with-new-context (context)
-	(apply #'toplevel-limit args))
-      (apply #'toplevel-limit args)))
+  (with-temporary-assumptions
+    (apply #'toplevel-limit args)))
 
 (defun toplevel-limit (&rest args)
   (let ((*limit-assumptions* ())
@@ -287,7 +281,8 @@
 (defun limit-context (var val direction) ;Only works on entry!
   (cond (limit-top
 	 (setq *limit-assumptions*
-           (cons (assume (ftake 'mgreaterp 'prin-inf *large-positive-number*))
+           (cons (assume-temporarily
+                  (ftake 'mgreaterp 'prin-inf *large-positive-number*))
                  (make-limit-assumptions var val direction)))
 	 (setq limit-top ()))
 	(t ()))
@@ -300,29 +295,20 @@
 	  ((and (not (infinityp val)) (null direction))
 	   ())
 	  ((eq val '$inf)
-	   (cons (assume (ftake 'mgreaterp var *large-positive-number*)) new-assumptions))
+	   (cons (assume-temporarily (ftake 'mgreaterp var *large-positive-number*)) new-assumptions))
 
 	  ((eq val '$minf)
-	   (cons (assume (ftake 'mgreaterp (- *large-positive-number*) var)) new-assumptions))
+	   (cons (assume-temporarily (ftake 'mgreaterp (- *large-positive-number*) var)) new-assumptions))
 
 	  ((eq direction '$plus)
-	   (cons (assume (ftake 'mgreaterp var 0)) new-assumptions)) ;All limits around 0
+	   (cons (assume-temporarily (ftake 'mgreaterp var 0)) new-assumptions)) ;All limits around 0
 
 	  ((eq direction '$minus)
-	   (cons (assume (ftake 'mgreaterp 0 var)) new-assumptions))
+	   (cons (assume-temporarily (ftake 'mgreaterp 0 var)) new-assumptions))
 	  (t
 	   ()))))
 
 (defun restore-assumptions ()
-;;;Hackery until assume and forget take reliable args. Nov. 9 1979.
-;;;JIM.
-  ;; Inside a parallel element TOPLEVEL-$LIMIT kills the scratch context
-  ;; these facts are in instead: FORGET could remove another runner's equal
-  ;; fact in place of this one.
-  (unless *parallel-evaluation-p*
-    (do ((assumption-list *limit-assumptions* (cdr assumption-list)))
-	((null assumption-list) t)
-      (forget (car assumption-list))))
   (cond ((and (not (null *integer-info*))
 	      (not limitp))
 	 (do ((list *integer-info* (cdr list)))
@@ -4684,8 +4670,7 @@ ignoring dummy variables and array indices."
 ;; Ideally we would use a lazy series representation that generates
 ;; more terms as higher order terms cancel.
 (defun calculate-series (exp var)
-  (let ((cntx ($supcontext)) 
-        (silent-taylor-flag t) 
+  (let ((silent-taylor-flag t) 
         ($taylordepth 8) 
         ($radexpand nil) 
         ($logexpand nil)
@@ -4696,11 +4681,10 @@ ignoring dummy variables and array indices."
         ($taylor_simplifier #'(lambda (q) (sratsimp (extra-simp q))))
         (was-internal (get var 'internal)))
     (unwind-protect 
-         (progn
+         (with-new-context (context)
            (putprop var t 'internal) 
            (let ((texp (partial-logarc exp (list '%atan))))
              (log-simp-plus-or-minus-i (catch 'taylor-catch ($taylor texp var 0 $lhospitallim)))))
-	  ($killcontext cntx)
       (unless was-internal
         (remprop var 'internal)))))     
 
@@ -5044,16 +5028,14 @@ ignoring dummy variables and array indices."
 	  ((eq dir '$minus)
 	   (setq exp (maxima-substitute (m+ val (m// -1 newvar)) var exp)))
 	  (t (merror (intl:gettext "gruntz: direction must be 'plus' or 'minus'; found: ~M") dir)))
-	  (let ((cx ($supcontext)))
-	   	    (unwind-protect
- 	         (progn
-				  (mfuncall '$assume (ftake 'mlessp *large-positive-number* newvar)) ; *large-positive-number* < newvar
-				  (mfuncall '$assume (ftake 'mlessp *large-positive-number* 'prin-inf)) ; *large-positive-number* < prin-inf
-				  (mfuncall '$activate cx) ;not sure this is needed, but OK	
-				  (setq exp (resimplify exp)) ;simplify in new context
-                  (setq exp (resimp-extra-simp (sratsimp exp))) ;additional simplifications
-				  (limitinf exp newvar)) ;compute & return limit
-			($killcontext cx))))) ;kill context & forget all new facts.	 			
+	  ;; Killing the new context forgets all new facts.
+	  (with-new-context (context)
+	    (mfuncall '$assume (ftake 'mlessp *large-positive-number* newvar)) ; *large-positive-number* < newvar
+	    (mfuncall '$assume (ftake 'mlessp *large-positive-number* 'prin-inf)) ; *large-positive-number* < prin-inf
+	    (mfuncall '$activate $context) ;not sure this is needed, but OK
+	    (setq exp (resimplify exp)) ;simplify in new context
+	    (setq exp (resimp-extra-simp (sratsimp exp))) ;additional simplifications
+	    (limitinf exp newvar)))) ;compute & return limit
 
 ;; substitute y for x in exp
 ;; similar to maxima-substitute but does not simplify result
