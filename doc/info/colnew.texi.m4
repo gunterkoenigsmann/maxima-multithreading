@@ -49,6 +49,13 @@ the use of adaptive meshes.
 The maxima interface to COLNEW exposes the full power and complexity
 of the Fortran 77 implementation.
 
+@code{colnew_expert} signals an error inside a parallel computation,
+including when @code{parallel_threads} is 1.  The translated solver keeps
+its state in variables shared by all threads, which is not safe for
+concurrent calls.  Use it outside parallel computations; its serial
+behavior is unchanged.  @code{colnew_appsln} only reads that state and
+can be called in parallel.
+
 COLNEW is a modification of the package COLSYS (@pxref{ascher-1981a,,Ascher 1981a} and @ref{ascher-1981b,, Ascher 1981b}).
 It incorporates a new basis
 representation replacing B-splines, and improvements for

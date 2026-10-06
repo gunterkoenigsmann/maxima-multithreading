@@ -7,6 +7,9 @@
 ;; must be functions.
 (defun $colnew_expert (ncomp m aleft aright zeta ipar ltol tol fixpnt ispace fspace
 		       iflag f df g dg init-guess)
+  ;; The translated COLNEW keeps its state in nine common blocks (COLORD,
+  ;; COLAPR, COLMSH, ...), one set per image.
+  (ensure-serial-execution '$colnew_expert)
   (flet ((convert-to-array (mlist atype)
 	   ;; Convert the Maxima lists to arrays
 	   (make-array (length (cdr mlist)) :element-type atype

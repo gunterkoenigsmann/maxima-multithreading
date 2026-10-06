@@ -1,6 +1,9 @@
 Maxima 5.50-post change log
 ===========================
 
+* colnew_expert signals an error inside a parallel computation: the
+  translated COLNEW solver keeps its state in common blocks shared by
+  all threads.
 * A parallel element reads and prints the way its caller does. On CCL
   the lisp reader and printer are per-thread, so a worker used the wrong
   package, ibase, obase and default float format, and INTERN built
