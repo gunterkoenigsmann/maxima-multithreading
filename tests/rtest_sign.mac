@@ -2655,6 +2655,23 @@ block([b],
  contexts);
 [initial, global];
 
+/* local(lq) hides the facts about lq for the frame, among them lr > lq,
+   which also sits on lr.  A query about lr met that hidden fact and
+   failed with a Lisp error ("The value -1 is not of type LIST"):
+   is(lr > 0), sign(lr) and even featurep(lr, integer).  Inside the frame
+   lr has no order facts; afterwards all of them are back. */
+(assume(lq > 0, lr > lq), declare(lr, integer), 0);
+0;
+
+block(local(lq), [is(lr > 0), sign(lr), featurep(lr, integer), facts(lq)]);
+[unknown, pnz, true, []];
+
+[is(lr > 0), sign(lr), facts(lq)];
+[true, pos, [lq > 0, lr > lq]];
+
+(forget(lq > 0, lr > lq), remove(lr, integer), 0);
+0;
+
 /**************************************/
 /* Leave this at the end of the file! */
 /**************************************/
