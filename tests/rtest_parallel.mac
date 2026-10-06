@@ -513,6 +513,19 @@ true$
       else is(parallel_worker_items() = 0)]);
 [true, true]$
 
+/* The Poisson series functions keep their working terms in variables of
+   pois3.lisp that nothing binds, and each runner binds them.  Shared,
+   elements came back with other elements' terms and no error at all:
+   measured, 10 of 10 runs of this region were wrong. */
+(pois_item(k) := [poissimp(sin(u)^(mod(k, 4) + 1)*cos(2*v) + k*cos(u)),
+                  poistimes(k*sin(u) + cos(v), cos(u) - k*sin(v)),
+                  poisint(k*cos(u) + sin(2*u), u),
+                  poisexpt(sin(u) + k*cos(v), 3),
+                  outofpois(poisplus(k*sin(u), cos(mod(k, 7)*v)))],
+ errcatch(is(parallel_makelist(makelist(pois_item(k), r, 1, 5), k, 1, 24)
+             = makelist(makelist(pois_item(k), r, 1, 5), k, 1, 24))));
+[true]$
+
 /* --- thru_parallel and in_parallel ---
 
    The keyword forms, which unlike parallel() refuse a loop they cannot

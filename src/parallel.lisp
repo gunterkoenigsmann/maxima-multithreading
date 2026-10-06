@@ -546,6 +546,11 @@ than for the computation."
          ;; FPROUND also returns its exponent adjustment through *M.
          ;; Keep that scratch private in calling and nested runners too.
          '*m
+         ;; The Poisson series functions (pois3.lisp) build their results in
+         ;; these and bind none of them: INTOPOIS accumulates in *A, POISINT
+         ;; and POISSUBST work in B*, H*, *COEF and *ARGC, the mergers in SS
+         ;; and CC.
+         '*a 'b* 'h* 'ss 'cc '*coef '*argc
          '*standard-output* '*error-output* '*trace-output*
          '*query-io* '*standard-input*
          ;; The lisp reader and printer are configured by the session and
