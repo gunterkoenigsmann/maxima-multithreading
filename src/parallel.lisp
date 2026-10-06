@@ -590,6 +590,10 @@ than for the computation."
          ;; one would replace a harmless difference with a race on it.
          ;; A worker wants its own, as WITH-THREAD-LOCAL-ENVIRONMENT
          ;; already gives the lambda cache.
+         ;;
+         ;; todd_coxeter() works in the structure it leaves in this
+         ;; variable, which the manual points users to afterwards.
+         '$todd_coxeter_state
          specials))))
 
 ;;; Giving each runner a context of its own -- so that facts a body
