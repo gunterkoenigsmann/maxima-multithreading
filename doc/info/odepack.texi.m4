@@ -40,6 +40,12 @@ References:
 Of the eight variants of the solver, Maxima currently only has an
 interface to @code{dlsode}.
 
+@code{dlsode} and @code{dlsode_step} signal an error inside a parallel
+computation, including when @code{parallel_threads} is 1.  The
+translated solver keeps its state in variables shared by all threads,
+which is not safe for concurrent calls.  Use them outside parallel
+computations; their serial behavior is unchanged.
+
 Let's say we have this system of equations to solve:
 m4_displaymath(
 <<<

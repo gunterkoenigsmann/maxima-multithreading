@@ -51,3 +51,18 @@ closeto(result[3],2,1e-10);
 true$
 (kill(closeto),0)$
 0$
+
+/* The translated solver keeps its state in the DLS001 common block and in
+   saved variables, one set for all threads, so parallel calls broke each
+   other's integrations.  Both entry points refuse a parallel computation;
+   init does not run the solver and stays allowed. */
+[errcatch(parallel_makelist(dlsode([-k*yy/10], [yy], [1], [ss, 0, 1, 0.5],
+                                   1e-8, 1e-8, 10), k, 1, 4)),
+ second(error)];
+[[], dlsode]$
+
+block([st: dlsode_init([-yy], [ss, yy], 10)],
+  [errcatch(parallel_makelist(dlsode_step([1.0], 0.0, 0.5, 1e-8, [1e-8], 1, st),
+                              k, 1, 2)),
+   second(error)]);
+[[], dlsode_step]$
