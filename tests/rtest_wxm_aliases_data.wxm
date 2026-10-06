@@ -1,0 +1,40 @@
+/* [wxMaxima batch file version 1] [ DO NOT EDIT BY HAND! ]*/
+/* [ Created with wxMaxima version 26.07.0-dev ] */
+/* [wxMaxima: comment start ]
+Test data for rtest_wxmx.mac: wxMaxima's unicode names for Maxima names
+   [wxMaxima: comment end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_pi : π$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_sum : ∑(k, k, 1, 4)$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_sqrt : √(9)$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_and : true ⋀ false$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_not : ¬false$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_inf : ∞$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_unspaced : '(a⋀b⋁¬c)$
+/* [wxMaxima: input   end   ] */
+
+/* [wxMaxima: input   start ] */
+wxm_alias_string : "a⋀b"$ /* a comment: ⋀ */
+/* [wxMaxima: input   end   ] */
+
+/* Old versions of Maxima abort loading files which end in a comment. */
+"Created with wxMaxima 26.07.0-dev"$

@@ -47,3 +47,68 @@ maxima$
 
 (kill(wxmx_test_a, wxmx_test_f, wxmx_test_l, wxmx_test_s, wxmx_test_u), 0);
 0$
+
+/* While a .wxm or .wxmx worksheet is loaded, the unicode symbols wxMaxima
+ * offers for Maxima names (the greek letter pi for %pi, the n-ary summation
+ * sign for sum, ...) are aliases of these names, as they are in wxMaxima.
+ */
+(load(file_search(rtest_wxm_aliases_data, file_search_tests)),
+ [wxm_alias_pi, wxm_alias_sum, wxm_alias_sqrt, wxm_alias_and, wxm_alias_not,
+  wxm_alias_inf]);
+[%pi, 10, 3, false, true, inf]$
+
+(load(file_search(rtest_wxmx_aliases_data, file_search_tests)),
+ [wxmx_alias_pi, wxmx_alias_sum, wxmx_alias_sqrt, wxmx_alias_and,
+  wxmx_alias_not, wxmx_alias_inf]);
+[%pi, 10, 3, false, true, inf]$
+
+(kill(wxm_alias_pi), batch(file_search(rtest_wxm_aliases_data, file_search_tests)),
+ wxm_alias_pi);
+%pi$
+
+(kill(wxmx_alias_pi),
+ batch(file_search(rtest_wxmx_aliases_data, file_search_tests)),
+ wxmx_alias_pi);
+%pi$
+
+/* As in wxMaxima, a symbol that is no letter separates the names next to
+ * it -- outside of strings and comments, which are read as they are.
+ */
+[wxm_alias_unspaced, wxmx_alias_unspaced];
+['((a and b) or (not c)), '((a and b) or (not c))]$
+
+[is(wxm_alias_string = "a⋀b"), is(wxmx_alias_string = "a⋀b")];
+[true, true]$
+
+/* ...even where these symbols are letters, as wxMaxima makes them */
+(declare("⋀", alphabetic, "⋁", alphabetic, "¬", alphabetic),
+ kill(wxm_alias_unspaced),
+ load(file_search(rtest_wxm_aliases_data, file_search_tests)),
+ remove("⋀", alphabetic, "⋁", alphabetic, "¬", alphabetic),
+ wxm_alias_unspaced);
+'((a and b) or (not c))$
+
+/* ...and only then */
+is(parse_string("π") = %pi);
+false$
+
+/* A worksheet that fails to load removes them, too */
+(errcatch(load(file_search(rtest_wxm_aliases_error, file_search_tests))),
+ [wxm_alias_before_error, is(parse_string("π") = %pi)]);
+[%pi, false]$
+
+/* An alias the user defined is left alone, during the load and after it */
+(alias(π, wxm_alias_user),
+ load(file_search(rtest_wxm_aliases_data, file_search_tests)),
+ [wxm_alias_pi, parse_string("π")]);
+[wxm_alias_user, wxm_alias_user]$
+
+(kill(wxm_alias_user), parse_string("π"));
+π$
+
+(kill(wxm_alias_pi, wxm_alias_sum, wxm_alias_sqrt, wxm_alias_and,
+      wxm_alias_not, wxm_alias_inf, wxmx_alias_pi, wxmx_alias_sum,
+      wxmx_alias_sqrt, wxmx_alias_and, wxmx_alias_not, wxmx_alias_inf,
+      wxm_alias_unspaced, wxmx_alias_unspaced, wxm_alias_string,
+      wxmx_alias_string, wxm_alias_before_error), 0);
+0$

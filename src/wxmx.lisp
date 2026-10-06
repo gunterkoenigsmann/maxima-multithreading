@@ -1,6 +1,6 @@
 ;;; -*-  Mode: Lisp; Package: Maxima; Syntax: Common-Lisp; Base: 10 -*- ;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;;;     Reading the Maxima input out of a wxMaxima .wxmx worksheet.     ;;;;;
+;;;     wxMaxima worksheets: their input, and their unicode names.      ;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; A .wxmx file is a .zip container whose member content.xml holds the
@@ -229,3 +229,169 @@
       (merror (intl:gettext "~A holds no content.xml; it is not a .wxmx worksheet.")
               (namestring filename)))
     (wxmx-content-input (wxmx-utf-8-string content))))
+
+;;; ------------------------------------------------------------------
+;;; wxMaxima's unicode names for Maxima names
+;;;
+;;; wxMaxima's editor offers a few unicode symbols that stand for a Maxima
+;;; name -- the greek letter pi for %pi, the n-ary summation sign for sum,
+;;; the logical "and" sign for and -- and its .wxm and .wxmx files keep
+;;; them as they were typed.  wxMaxima makes them work by defining each one
+;;; as an alias at startup (wx-define-unicode-aliases in wxMaxima's
+;;; wxMathML.lisp has the same list as below).  It also declares them
+;;; alphabetic, so that Maxima reads them as names at all, which makes a
+;;; symbol that is no letter part of the names it touches: a, the "and"
+;;; sign and b written without spaces would be one name.  So before it
+;;; sends a command wxMaxima puts spaces around the symbols that are no
+;;; letters (Worksheet::UnicodeToMaxima).
+;;;
+;;; WITH-WXMAXIMA-ALIASES defines the aliases for as long as a .wxm or .wxmx
+;;; file is being read, and WXMAXIMA-INPUT-STRING puts in the spaces, so
+;;; that Maxima reads such a file the way wxMaxima reads what is typed into
+;;; it -- with or without wxMaxima as the front end.  Without wxMaxima the
+;;; symbols need no declaration: the reader reads a character that is no
+;;; letter as a name of its own.  It still needs the spaces where a
+;;; character is a byte (GCL), since the reader takes every byte above 127
+;;; for a letter.
+
+(defparameter *wxmaxima-unicode-aliases*
+  '((#x03C0 $%pi t)       ; greek small letter pi
+    (#x2148 $%i t)        ; double-struck italic small i
+    (#x2147 $%e t)        ; double-struck italic small e
+    (#x221E $inf nil)     ; infinity
+    (#x2211 $sum nil)     ; n-ary summation
+    (#x220F $product nil) ; n-ary product
+    (#x222B $integrate nil); integral
+    (#x221A $sqrt nil)    ; square root
+    (#x22C0 $and nil)     ; n-ary logical and
+    (#x22C1 $or nil)      ; n-ary logical or
+    (#x22BB $xor nil)     ; xor
+    (#x22BC $nand nil)    ; nand
+    (#x22BD $nor nil)     ; nor
+    (#x21D2 $implies nil) ; rightwards double arrow
+    (#x21D4 $equiv nil)   ; left right double arrow
+    (#x00AC $not nil))    ; not sign
+  "The unicode symbols wxMaxima offers for a Maxima name, as a list of
+  (code point, Maxima name, letter) triples.  Letter says whether Unicode
+  calls the symbol a letter, which a Lisp whose characters are bytes
+  cannot ask ALPHA-CHAR-P.")
+
+(defun wxmaxima-unicode-string (codepoint)
+  "The string the character of CODEPOINT is read as.  A Lisp whose
+  characters are Unicode reads it as one character; one whose characters
+  are bytes (GCL) reads a UTF-8 file as the bytes that encode it."
+  (if (> char-code-limit #xFFFF)
+      (string (code-char codepoint))
+      (map 'string #'code-char
+           (cond ((< codepoint #x80) (list codepoint))
+                 ((< codepoint #x800)
+                  (list (logior #xC0 (ash codepoint -6))
+                        (logior #x80 (logand codepoint #x3F))))
+                 (t
+                  (list (logior #xE0 (ash codepoint -12))
+                        (logior #x80 (logand (ash codepoint -6) #x3F))
+                        (logior #x80 (logand codepoint #x3F))))))))
+
+(defun wxmaxima-alias-symbol (codepoint)
+  "The Maxima name the character of CODEPOINT is read as on its own.
+  IMPLODE spells it the way the reader does, which for instance inverts
+  the case of an all-lowercase name."
+  (implode (coerce (concatenate 'string "$"
+                                (wxmaxima-unicode-string codepoint))
+                   'list)))
+
+(defun wxmaxima-separate-symbols (text)
+  "TEXT, Maxima input, with a space on either side of each of wxMaxima's
+  unicode symbols for a Maxima name that is no letter -- outside of
+  strings and comments, which are copied as they are, as is a character
+  escaped with a backslash."
+  (let ((symbols (loop for (codepoint nil letterp) in *wxmaxima-unicode-aliases*
+                       unless letterp
+                         collect (wxmaxima-unicode-string codepoint)))
+        (length (length text))
+        (comment-depth 0)
+        (i 0))
+    (flet ((at (string)
+             (let ((end (+ i (length string))))
+               (and (<= end length)
+                    (string= string text :start2 i :end2 end)))))
+      (with-output-to-string (out)
+        (loop while (< i length)
+              do (let ((character (char text i))
+                       (symbol nil))
+                   (cond ((at "/*")
+                          ;; Maxima's comments nest.
+                          (incf comment-depth)
+                          (write-string "/*" out)
+                          (incf i 2))
+                         ((and (plusp comment-depth) (at "*/"))
+                          (decf comment-depth)
+                          (write-string "*/" out)
+                          (incf i 2))
+                         ((plusp comment-depth)
+                          (write-char character out)
+                          (incf i))
+                         ((char= character #\\)
+                          (write-string text out :start i
+                                                 :end (min length (+ i 2)))
+                          (incf i 2))
+                         ((char= character #\")
+                          (let ((end (do ((j (1+ i) (1+ j)))
+                                         ((>= j length) length)
+                                       (case (char text j)
+                                         (#\\ (incf j))
+                                         (#\" (return (1+ j)))))))
+                            (write-string text out :start i :end end)
+                            (setq i end)))
+                         ((setq symbol (find-if #'at symbols))
+                          (write-char #\Space out)
+                          (write-string symbol out)
+                          (write-char #\Space out)
+                          (incf i (length symbol)))
+                         (t
+                          (write-char character out)
+                          (incf i)))))))))
+
+(defun wxmaxima-input-string (filename)
+  "The Maxima input of the wxMaxima .wxm or .wxmx file FILENAME, with
+  spaces put around the unicode symbols that need them, as wxMaxima does
+  before it sends a command."
+  (wxmaxima-separate-symbols
+   (if (wxmx-file-p filename)
+       (wxmx-input-string filename)
+       (with-open-file (stream filename)
+         (with-output-to-string (out)
+           (loop for line = (read-line stream nil)
+                 while line
+                 do (write-line line out)))))))
+
+(defun call-with-wxmaxima-aliases (function)
+  "Call FUNCTION with wxMaxima's unicode names defined as aliases of the
+  Maxima names they stand for, and remove them once it returns or exits
+  non-locally.
+
+  Only an alias this function added is removed again, and only if it is
+  still as this function left it: a name that already is an alias --
+  because wxMaxima is the front end and has defined them all, because
+  the user said alias(), or because this is a file loaded from within
+  such a file -- is left alone, before and after.
+
+  Unlike alias(), this gives the Maxima name no reversealias property,
+  which would make Maxima print it as the unicode symbol from then on."
+  (let ((added nil))
+    (unwind-protect
+         (progn
+           (loop for (codepoint old) in *wxmaxima-unicode-aliases*
+                 for new = (wxmaxima-alias-symbol codepoint)
+                 unless (get new 'alias)
+                   do (putprop new old 'alias)
+                      (push (cons new old) added))
+           (funcall function))
+      (loop for (new . old) in added
+            when (eq (get new 'alias) old)
+              do (remprop new 'alias)))))
+
+(defmacro with-wxmaxima-aliases (&body body)
+  "Evaluate BODY with wxMaxima's unicode names defined as aliases.  See
+  CALL-WITH-WXMAXIMA-ALIASES."
+  `(call-with-wxmaxima-aliases (lambda () ,@body)))

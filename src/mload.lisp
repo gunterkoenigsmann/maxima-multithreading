@@ -96,9 +96,11 @@
       (batchload-stream filename-or-stream)
     (let
       ((filename ($file_search1 filename-or-stream '((mlist) $file_search_maxima))))
-      (if (wxmx-file-p filename)
-        (with-input-from-string (in-stream (wxmx-input-string filename))
-          (batchload-stream in-stream :truename (namestring filename)))
+      (if (wxmaxima-file-p filename)
+        (with-wxmaxima-aliases
+          (with-input-from-string (in-stream (wxmaxima-input-string filename))
+            (batchload-stream in-stream
+                              :truename (namestring (truename filename)))))
         (with-open-file (in-stream filename)
           (batchload-stream in-stream))))))
 
@@ -213,6 +215,14 @@
 (defun wxmx-file-p (filename)
   "Does FILENAME name a wxMaxima .wxmx worksheet?"
   (member ($pathname_type filename) (cdr $file_type_wxmx) :test #'string=))
+
+;; A wxMaxima .wxm or .wxmx file is read with the unicode symbols wxMaxima
+;; offers for Maxima names (the greek letter pi for %pi, and so on) defined
+;; as aliases of those names, as wxMaxima does (src/wxmx.lisp).
+(defun wxmaxima-file-p (filename)
+  "Does FILENAME name a wxMaxima .wxm or .wxmx file?"
+  (or (equal ($pathname_type filename) "wxm")
+      (wxmx-file-p filename)))
   
 
 ;; Following GENERIC-AUTOLOAD is copied from orthopoly/orthopoly-init.lisp.
@@ -280,9 +290,11 @@
       (cond
         ((eq demo :test)
          (test-batch filename nil :show-all t))
-        ((wxmx-file-p filename)
-          (with-input-from-string (in-stream (wxmx-input-string filename))
-            (batch-stream in-stream demo :truename (namestring filename))))
+        ((wxmaxima-file-p filename)
+          (with-wxmaxima-aliases
+            (with-input-from-string (in-stream (wxmaxima-input-string filename))
+              (batch-stream in-stream demo
+                            :truename (namestring (truename filename))))))
         (t
           (with-open-file (in-stream filename)
             (batch-stream in-stream demo)))))))
