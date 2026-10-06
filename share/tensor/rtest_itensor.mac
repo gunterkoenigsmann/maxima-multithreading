@@ -129,6 +129,33 @@ apply(ev,[contract(apply(ev,[contract(apply(ev,[det(H),nouns,expand])),nouns])),
 for a thru dim do (for b thru dim do f[a,b]:sum(ug[b,c]*diff(B[a],ct_coords[c]),c,1,dim)-sum(sum(ug[b,c]*C[d]*diff(lg[a,d],ct_coords[c]),c,1,dim),d,1,dim));*/
 /* TODO: torsion, nonmetricity tensors, connection coeffs */
 
+/* ic_convert collects the indexed objects it meets in INDLIST, which is
+   also save()'s list of properties to write (src/dskfn.lisp).  It binds
+   it now; assigned, one ic_convert() call left save() writing no
+   properties at all, and parallel calls saw each other's objects. */
+(declare (ics_f, evfun),
+ ic_convert (icc([m],[]) = ica([m],[])),
+ save (sconcat (maxima_tempdir, "/rtest_itensor_ics.lisp"), ics_f),
+ kill (ics_f),
+ load (sconcat (maxima_tempdir, "/rtest_itensor_ics.lisp")),
+ properties (ics_f));
+[evfun];
+
+/* Objects of one name with different index counts in parallel calls,
+   each fine on its own */
+(icr1: apply ("+", makelist (concat (icb, j)([m],[]), j, 1, 30))
+       + ica([m],[]),
+ icr2: apply ("+", makelist (concat (icb, j)([m,n],[]), j, 1, 30))
+       + ica([m,n],[]),
+ icf(kk) := if evenp (kk) then ic_convert (icc([m],[]) = icr1)
+            else ic_convert (icd([m,n],[]) = icr2),
+ is (parallel_makelist (icf (kk), kk, 1, 48)
+     = makelist (icf (kk), kk, 1, 48)));
+true;
+
+(kill (ics_f, icr1, icr2, icf), 0);
+0;
+
 
 /* Bug #1541: "covdiff yields nonsense result" */
 

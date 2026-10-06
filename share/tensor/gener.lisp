@@ -25,7 +25,7 @@
 ;   contravariant indices to UG.
 
 (defun $ic_convert (ee)
-       (prog (e free lhs rhs)
+       (prog (e free lhs rhs indlist)
          (setq e ($expand ee))
 	     (cond ((or (atom e) (not (eq (caar e) 'mequal)))
 		    (merror "IC_CONVERT requires an equation as an argument"))
@@ -91,7 +91,7 @@ IC_CONVERT cannot currently handle indexed objects of the same name~
 
 (defun tabulate (e)        ;For each indexed object in E, appends a list of the
        (cond ((atom e))    ;name of that object and the number of covariant and
-	     ((rpobj e)    ;contravariant indices to the global list INDLIST
+	     ((rpobj e)    ;contravariant indices to $IC_CONVERT's INDLIST
 	      (setq indlist (cons (list (caar e) (length (cdadr e))
 					(length (cdaddr e)))
 				  indlist)))
