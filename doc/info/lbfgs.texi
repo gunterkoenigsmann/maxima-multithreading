@@ -16,6 +16,12 @@ and translated into Lisp automatically via the program @code{f2cl}.
 The Maxima package @code{lbfgs} comprises the translated code plus
 an interface function which manages some details.
 
+@code{lbfgs} signals an error inside a parallel computation, including
+when @code{parallel_threads} is 1.  The translated routines keep their
+state between calls in variables shared by all threads, which is not
+safe for concurrent calls.  Use @code{lbfgs} outside parallel
+computations; its serial behavior is unchanged.
+
 References:
 
 [1] D. Liu and J. Nocedal. "On the limited memory BFGS method for large

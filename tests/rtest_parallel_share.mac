@@ -124,6 +124,27 @@ sublist(makelist(i, i, 1, 48),
 (kill(all), 0);
 0$
 
+/* lbfgs (share/lbfgs) keeps the state of its translated routines -- LBFGS,
+   MCSRCH and the LB3 common block -- in variables shared by all threads, so
+   concurrent calls broke each other's line searches.  It refuses a parallel
+   computation, as the LAPACK eigenvalue routines do, and runs serially as
+   before. */
+(kill(all), load(lbfgs), 0);
+0$
+
+[errcatch(parallel_makelist(lbfgs((x1 - k)^2 + x2^2, [x1, x2], [0, 0],
+                                  1e-8, [-1, 0]), k, 1, 4)),
+ second(error)];
+[[], lbfgs]$
+
+block([s: lbfgs((x1 - 2)^2 + x2^2, [x1, x2], [0, 0], 1e-8, [-1, 0])],
+  [lhs(s[1]), lhs(s[2]), is(abs(rhs(s[1]) - 2) < 1e-6),
+   is(abs(rhs(s[2])) < 1e-6)]);
+[x1, x2, true, true]$
+
+(kill(all), 0);
+0$
+
 /* simplify_sum (share/solve_rec/simplify_sum.mac) assigned polypart,
    support and dif -- and, on paths not reached here, ni_coeffs and
    quolim -- without making them block locals; support was even meant to

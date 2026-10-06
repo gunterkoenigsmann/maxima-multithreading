@@ -74,6 +74,11 @@ estimates : lbfgs ('[F(a, b, c), [F1(a, b, c), F2(a, b, c), F3(a, b, c)]],
 
 (defmfun $lbfgs (FOM-expr x-list x-initial eps iprint-list)
 
+  ;; LBFGS and MCSRCH keep their state between the calls of the reverse
+  ;; communication below in variables of the translated code, one set
+  ;; per image, and the LB3 common block is one too.
+  (ensure-serial-execution '$lbfgs)
+
   (if
     (or (and (symbolp FOM-expr) (mfboundp FOM-expr))
         (and (consp FOM-expr) (eq (caar FOM-expr) 'lambda)))
