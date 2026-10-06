@@ -144,7 +144,7 @@
 					   (mapcar (lambda (ee) ($canform ee f)) (cdr e))) t) e))))))
 
 (defun canten (e nfprpobjs)		;CANonical TENsor
-  (prog (cov contr deriv tensor)
+  (prog (cov contr deriv tensor csign)
      ((lambda (dummy) (and nfprpobjs dummy (setq e (rename1 e dummy))))
       (nonumber (cdaddr ($indices e)))) ;NFPRPOBJS is Not From Product
      (setq cov (copy-tree (cdadr e))	;of RP (indexed) OBJects

@@ -389,35 +389,42 @@
   (let (derivlist)
     (ideriv args)))
 
-(let (temp x d)
+;; The variable, the dummy index and the partial result of the covariant
+;; derivative being taken.  Each call of $COVDIFF binds them, because
+;; parallel runners take covariant derivatives at the same time.
+(defvar *covdiff-x*)
+(defvar *covdiff-d*)
+(defvar *covdiff-temp*)
+
+(progn
 
   (defmfun $covdiff nargs
     (prog
-      (e i)
+      (e i *covdiff-temp* *covdiff-x* *covdiff-d*)
       (and (< nargs 2) (merror "COVDIFF must have at least 2 args"))
-      (setq temp nil d nil)
       (setq i 2 e (arg 1))
-      again (setq x (arg i) e (covdiff e) i (1+ i))
+      again (setq *covdiff-x* (arg i) e (covdiff e) i (1+ i))
       (and (> i nargs) (return e))
       (go again)
     )
   )
   
   (defun covdiff (e)                      ; The covariant derivative...
-    (setq d ($idummy))
+    (setq *covdiff-d* ($idummy))
     (cond
       (               ; is the partial derivative for scalars (*** torsion?)
         (or (atom e) (eq (caar e) 'rat))
-        (idiff e x)
+        (idiff e *covdiff-x*)
       )
       (
         (rpobj e)
-        (setq temp
+        (setq *covdiff-temp*
           (mapcar
             #'(lambda (v)
               (list '(mtimes)
-                (list (diffop) (list smlist d x) (list smlist v))
-                (consubst d v e)
+                (list (diffop) (list smlist *covdiff-d* *covdiff-x*)
+                      (list smlist v))
+                (consubst *covdiff-d* v e)
               )
             )
             (conti e)
@@ -427,7 +434,7 @@
           (cons
             '(mplus)
             (cons
-              (idiff e x)
+              (idiff e *covdiff-x*)
               (cond
                 (
                   (or (covi e) (cdddr e))
@@ -438,10 +445,10 @@
                               (list '(mtimes)
                                   (list
                                     (diffop)
-                                    (list smlist v x)
-                                    (list smlist d)
+                                    (list smlist v *covdiff-x*)
+                                    (list smlist *covdiff-d*)
                                   )
-                                  (covsubst d v e)
+                                  (covsubst *covdiff-d* v e)
                               )
                             )
                             (covi e)
@@ -452,10 +459,10 @@
                                 '(mtimes)
                                 (list
                                   (diffop)
-                                  (list smlist v x)
-                                  (list smlist d)
+                                  (list smlist v *covdiff-x*)
+                                  (list smlist *covdiff-d*)
                                 )
-                                (dersubst d v e)
+                                (dersubst *covdiff-d* v e)
                               )
                             )
                             (cdddr e)
@@ -463,10 +470,10 @@
                         )
                       )
                     )
-                    temp
+                    *covdiff-temp*
                   )
                 )
-                (t temp)
+                (t *covdiff-temp*)
               )
             )
           )
@@ -476,7 +483,7 @@
       (
         (eq (caar e) 'mtimes)     ; (a*b)'
         (simplus
-          (covdifftimes (cdr e) x)
+          (covdifftimes (cdr e) *covdiff-x*)
           1 t
         )
       )
@@ -501,7 +508,7 @@
               (cadr e)
               (list '(mplus) -1. (caddr e))
             )
-            ($covdiff (cadr e) x)
+            ($covdiff (cadr e) *covdiff-x*)
           )
           1. nil
         )
@@ -516,8 +523,8 @@
                     (return (simptimes (list '(mtimes) e 
                         (list (cons $imetric '(simp)) '((mlist simp)) (list '(mlist simp) d1 d2))
                         (cond ((position '$extdiff *mlambda-call-stack*)  ; Special case, we're in extdiff()
-                         ($idiff (list (cons $imetric '(simp)) (list '(mlist simp) d1 d2) '((mlist simp))) x))
-                         (t ($covdiff (list (cons $imetric '(simp)) (list '(mlist simp) d1 d2) '((mlist simp))) x))
+                         ($idiff (list (cons $imetric '(simp)) (list '(mlist simp) d1 d2) '((mlist simp))) *covdiff-x*))
+                         (t ($covdiff (list (cons $imetric '(simp)) (list '(mlist simp) d1 d2) '((mlist simp))) *covdiff-x*))
                         )
                     ) 1. t))
              ))
