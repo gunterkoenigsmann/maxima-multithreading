@@ -407,9 +407,16 @@
 		((atom x) (list x))
 		(t x)))
   (when (> (length ar) 0)
-    (set-up-cursor ar)
-    (loop while (aset-by-cursor ar (car x))
-       do (and (cdr x) (setq x (cdr x))))))
+    ;; The walk over AR keeps its position in *ACURSOR*, so a cursor of
+    ;; this call's own is what lets two threads fill two arrays at once:
+    ;; sharing one, each advances the other's index, elements land in the
+    ;; wrong slot or in none, and ASET-BY-CURSOR's ECASE is handed a rank
+    ;; of 0.  SET-UP-CURSOR and ASET-BY-CURSOR are called from here and
+    ;; nowhere else, so this binding is the whole fix.
+    (let ((*acursor* (make-array 11 :element-type 'fixnum :initial-element 0)))
+      (set-up-cursor ar)
+      (loop while (aset-by-cursor ar (car x))
+         do (and (cdr x) (setq x (cdr x)))))))
 
 (defun listarray (x)
   (when (symbolp x)

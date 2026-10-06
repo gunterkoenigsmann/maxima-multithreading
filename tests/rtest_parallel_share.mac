@@ -186,3 +186,40 @@ sublist(makelist(i, i, 1, 24),
 
 (kill(all), 0);
 0$
+
+/* FILLARRAY (src/clmacs.lisp) walks the array it fills keeping its
+   position in *ACURSOR*, one global array of eleven fixnums.  Two threads
+   filling two arrays at the same time advanced each other's index, so
+   elements landed in the wrong slot or in no slot at all -- a slot left at
+   its initial value reads as false -- and often enough ASET-BY-CURSOR's
+   ECASE was handed a rank of 0 and signalled a lisp error.  Measured on
+   SBCL: eight regions of eight elements left holes in 8 runs of 8, and
+   none with the cursor bound per call (GitHub issue #125).
+
+   Arrays big enough that the fills overlap; small ones finish too fast to
+   collide. */
+
+block([tot: 0],
+  for q thru 8 do
+    tot: tot + apply("+", parallel_makelist(
+      errcatch(block([a: make_array(any, 5000)],
+                 fillarray(a, makelist(k, k, 1, 5000)),
+                 ?count(false, a)))[1], %zz, 1, 8)),
+  tot);
+0$
+
+/* The symptom it was found through: continuous_freq sorts a filled array
+   and binary-searches it, so a hole makes an unevaluated comparison --
+   false <= 2.2 -- travel out as the answer. */
+
+(load(descriptive), 0);
+0$
+
+block([d: makelist(mod(q^2*7, 23)/2.0, q, 1, 40), ref, bad: 0],
+  ref: continuous_freq(d, 5),
+  for q thru 5 do
+    bad: bad + length(sublist(parallel_makelist(continuous_freq(d, 5),
+                                                %zz, 1, 8),
+                              lambda([v], not is(v = ref)))),
+  bad);
+0$
