@@ -49,6 +49,43 @@ sublist(makelist(i, i, 1, 48),
 (kill(all), 0);
 0$
 
+/* hompack (share/hompack) has no test file of its own.  It is
+   f2cl-translated Fortran whose routines keep saved variables in top-level
+   LETs, one set for all threads, so parallel calls broke each other's path
+   tracking.  Its entry points refuse a parallel computation, as the LAPACK
+   eigenvalue routines do; the operator in error is checked, not the
+   message, which can be translated. */
+(kill(all), load(hompack), 0);
+0$
+
+/* hompack_fixpdf on its own example (share/hompack/hompack_ex2.mac).  It
+   named its variable list VARLIST, the rational function package's
+   special, which came back false from computing the Jacobian. */
+block([pr5: x1*x2*x3*x4*x5, s5: x1 + x2 + x3 + x4 + x5 - 6],
+  block([r: hompack_fixpdf([pr5 - 1, s5 + x2, s5 + x3, s5 + x4, s5 + x5],
+                           [x1, x2, x3, x4, x5], arctol = .5e-4, eps = .5e-4)],
+    [first(r), every(lambda([v], is(abs(v - 1) < 1e-3)), second(r))]));
+[1, true]$
+
+[errcatch(parallel_makelist(hompack_polsys([x1^2 - k - 1, x2^2 - x1 - 2],
+                                           [x1, x2]), k, 1, 4)),
+ second(error)];
+[[], hompack_polsys]$
+
+[errcatch(parallel_makelist(hompack_fixpdf([x1*x2 - 1, x1 + x2 - 2 - k/10],
+                                           [x1, x2]), k, 1, 2)),
+ second(error)];
+[[], hompack_fixpdf]$
+
+block([s: hompack_polsys([x1^2 - 4, x2 - x1], [x1, x2])],
+  [first(s),
+   sort(map(lambda([r], round(realpart(rhs(first(r))))), second(s))),
+   every(lambda([r], is(abs(imagpart(rhs(first(r)))) < 1e-8)), second(s))]);
+[0, [-2, 2], true]$
+
+(kill(all), 0);
+0$
+
 /* PIECE is the part the last part() or inpart() call selected, and code
    reads it right after that call: trgsmp.mac does get(piece, ...) after
    inpart(alt, 0), and so do a dozen other share packages.  It is bound

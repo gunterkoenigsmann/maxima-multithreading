@@ -171,6 +171,9 @@
             SSPAR[j] < 0, use default value.  See Fortran polynf and
             stepnf for more info."
 
+  ;; The translated routines keep saved variables in top-level LETs,
+  ;; one set per image.
+  (ensure-serial-execution '$hompack_polsys)
   (unless (= ($length eqnlist) ($length varlist))
     (merror "~M: Number of equations (~M) is not the number of variables (~M)"
 	    %%pretty-fname (length eqnlist) (length varlist)))
@@ -311,32 +314,43 @@
 
 (in-package "MAXIMA")
 
-(defmfun $hompack_fixpdf (fcns varlist
+(defmfun $hompack_fixpdf (fcns var-list
 			       &key
 			       (iflag -1) (arctol -1d0) (eps 1d-5) (trace 0) inita)
   "hompack_fixpdf"
 
-  (let* ((n (length (cdr varlist)))
-	 (y (make-array (1+ n) :element-type 'double-float))
+  (ensure-serial-execution '$hompack_fixpdf)
+  (let* ((n (length (cdr var-list)))
+	 (y (make-array (1+ n) :element-type 'double-float
+			       :initial-element 0d0))
 	 (ndima n)
-	 (a (make-array ndima :element-type 'double-float))
-	 (yp (make-array (1+ n) :element-type 'double-float))
-	 (ypold (make-array (1+ n) :element-type 'double-float))
-	 (qr (make-array (* n (1+ n)) :element-type 'double-float))
-	 (alpha (make-array n :element-type 'double-float))
-	 (tz (make-array (1+ n) :element-type 'double-float))
-	 (pivot (make-array (1+ n) :element-type 'f2cl-lib:integer4))
-	 (wt (make-array (1+ n) :element-type 'double-float))
-	 (phi (make-array (* 16 (1+ n)) :element-type 'double-float))
-	 (p (make-array (1+ n) :element-type 'double-float))
-	 (par (make-array 1 :element-type 'double-float))
-	 (ipar (make-array 1 :element-type 'f2cl-lib:integer4))
+	 (a (make-array ndima :element-type 'double-float :initial-element 0d0))
+	 (yp (make-array (1+ n) :element-type 'double-float
+				:initial-element 0d0))
+	 (ypold (make-array (1+ n) :element-type 'double-float
+				   :initial-element 0d0))
+	 (qr (make-array (* n (1+ n)) :element-type 'double-float
+				      :initial-element 0d0))
+	 (alpha (make-array n :element-type 'double-float :initial-element 0d0))
+	 (tz (make-array (1+ n) :element-type 'double-float
+				:initial-element 0d0))
+	 (pivot (make-array (1+ n) :element-type 'f2cl-lib:integer4
+				   :initial-element 0))
+	 (wt (make-array (1+ n) :element-type 'double-float
+				:initial-element 0d0))
+	 (phi (make-array (* 16 (1+ n)) :element-type 'double-float
+					:initial-element 0d0))
+	 (p (make-array (1+ n) :element-type 'double-float
+			       :initial-element 0d0))
+	 (par (make-array 1 :element-type 'double-float :initial-element 0d0))
+	 (ipar (make-array 1 :element-type 'f2cl-lib:integer4
+			     :initial-element 0))
 	 (arclen 0d0)
 	 (nfe 0)
-	 (fvs (coerce-float-fun fcns varlist))
-	 (fj (let ((fj (meval `(($jacobian) ,fcns ,varlist))))
+	 (fvs (coerce-float-fun fcns var-list))
+	 (fj (let ((fj (meval `(($jacobian) ,fcns ,var-list))))
 	       (mapcar #'(lambda (fjf)
-			   (coerce-float-fun fjf varlist))
+			   (coerce-float-fun fjf var-list))
 		       ;; The Fortran code wants the k-th column, so
 		       ;; transpose the Jacobian here to make the
 		       ;; interface between Maxima and Fortran a

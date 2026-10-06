@@ -1,6 +1,9 @@
 Maxima 5.50-post change log
 ===========================
 
+* hompack_polsys and hompack_fixpdf signal an error inside a parallel
+  computation: the translated HOMPACK routines keep saved variables
+  shared by all threads.
 * A parallel element reads and prints the way its caller does. On CCL
   the lisp reader and printer are per-thread, so a worker used the wrong
   package, ibase, obase and default float format, and INTERN built
