@@ -82,7 +82,21 @@ block(
 );
 [];
 
-/* The decfp code changes the value of bigfloatone (and possibly other 
+/* DECBCONS keeps the header of new decimal bigfloats for reuse.  In
+   parallel elements with different fpprec, each number carries its own
+   element's precision.  The precision comes from the element number by
+   addition alone: with decfp loaded, ECL's worker threads failed on mod
+   and on reading list elements when ECL's compiler could not find its
+   include directory. */
+(dcf(k) := block([fpprec: 10 + k],
+   makelist(?third(?car(bfloat(1/(j + k)))), j, 1, 200)),
+ is(parallel_makelist(dcf(k), k, 1, 48) = makelist(dcf(k), k, 1, 48)));
+true;
+
+(kill(dcf), 0);
+0;
+
+/* The decfp code changes the value of bigfloatone (and possibly other
 such values) to decimal floats. Let's reset them. */
 (reset(?\*bfmhalf\*,?\*bfhalf\*,?\*bigfloatone\*,?\*bigfloatzero\*),0);
 0$

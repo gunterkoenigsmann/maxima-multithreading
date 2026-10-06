@@ -271,15 +271,15 @@ is (sum+1/10^50=1.0L0) ;  should be true
 (defvar *decbfloat-header* nil
   "Current header ('BIGFLOAT 'SIMP $FPPREC 'DECIMAL) for new decimal bigfloats")
 
-(defvar *decbfloat-header-prec* nil
-  "Precision of current bigfloat header")
-
 (defun decbcons (s)
-  (unless (eql $fpprec *decbfloat-header-prec*)
-    ;; Precision was changed, make a new header.
-    (setq *decbfloat-header* `(bigfloat simp ,$fpprec decimal)
-          *decbfloat-header-prec* $fpprec))
-  (cons *decbfloat-header* (decimalfptrim s)))
+  ;; The header is read once and checked against this thread's $FPPREC:
+  ;; parallel elements may compute with different precisions.
+  (let ((header *decbfloat-header*))
+    (unless (eql $fpprec (third header))
+      ;; Precision was changed, make a new header.
+      (setq header `(bigfloat simp ,$fpprec decimal)
+            *decbfloat-header* header))
+    (cons header (decimalfptrim s))))
 
 ;; probably not useful.  We only allow new decimal bigfloats
 ;; if they are typed in as 1.2L0 etc  Or maybe if they are integers??
